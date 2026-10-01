@@ -116,7 +116,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/login?error=gluecron_user_failed`);
   }
 
-  const token = signCustomerSession(login, email, sessionSecret);
+  // profileFromUserinfo refused anything but `email_verified: true` above,
+  // so the address in this session is provider-verified.
+  const token = signCustomerSession(login, email, sessionSecret, undefined, true);
   const isProduction = process.env.NODE_ENV === "production";
 
   const response = NextResponse.redirect(`${baseUrl}${landing}`);

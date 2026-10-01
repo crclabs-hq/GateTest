@@ -8,6 +8,8 @@
 
 import crypto from "crypto";
 import { ADMIN_COOKIE_NAME } from "./admin-auth";
+import { getAdminAllowlist, isAdminEmail } from "./admin-allowlist";
+import { CUSTOMER_COOKIE_NAME, verifyCustomerSession } from "./customer-session";
 
 export const SESSION_COOKIE_NAME = "gatetest_admin_session";
 export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
@@ -45,11 +47,10 @@ export function getAdminConfig(): AdminConfigStatus {
     explicitRedirect ||
     (baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/github/admin-callback` : "");
   const sessionSecret = process.env.SESSION_SECRET || "";
-  const allowlistRaw = process.env.GATETEST_ADMIN_USERNAMES || "";
-  const allowlist = allowlistRaw
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+  // GitHub logins only — an email entry in GATETEST_ADMIN_USERNAMES is read
+  // by the customer-sign-in path below (admin-allowlist.ts), and no GitHub
+  // login contains "@", so dropping it here admits nobody new or fewer.
+  const allowlist = getAdminAllowlist().logins;
 
   const missing: string[] = [];
   if (!clientId) missing.push("GITHUB_CLIENT_ID");
@@ -177,23 +178,49 @@ function checkPasswordCookie(value: string | undefined): boolean {
   }
 }
 
+type CookieReader = { get(name: string): { value: string } | undefined };
+
 /**
- * The one definition of "who is signed in as admin" (Doctrine #4) — GitHub
- * OAuth session cookie checked first, then the password cookie. Every
- * /admin/* route and page had re-implemented this same two-method check
- * (repos/route.ts's own comment calls it out: "copied verbatim from
- * /api/admin/repos/route.ts"); the admin shell layout needs the same answer
- * to decide whether to render its chrome, so it gets a shared home instead
- * of a fourth copy.
+ * The customer sign-in (Google, GitHub, Gluecron, email + password — cookie
+ * CUSTOMER_COOKIE_NAME) as the admin sees it:
+ *   signedIn — a valid customer session is present (any provider);
+ *   email    — its address, ONLY when that address is on the admin allowlist
+ *              (admin-allowlist.ts) AND the provider verified it (`ev`).
+ * Signed with SESSION_SECRET, like the session itself; no secret, no answer.
  */
-export function getAdminLoginFromCookies(cookieStore: {
-  get(name: string): { value: string } | undefined;
-}): string | null {
+export function getCustomerAdminStatus(cookieStore: CookieReader): {
+  signedIn: boolean;
+  email: string | null;
+} {
+  const secret = process.env.SESSION_SECRET || "";
+  if (!secret) return { signedIn: false, email: null };
+  const session = verifyCustomerSession(cookieStore.get(CUSTOMER_COOKIE_NAME)?.value, secret);
+  if (!session) return { signedIn: false, email: null };
+  if (!isAdminEmail(session.e, session.ev)) return { signedIn: true, email: null };
+  return { signedIn: true, email: String(session.e).trim().toLowerCase() };
+}
+
+/**
+ * The one definition of "who is signed in as admin" (Doctrine #4), in order:
+ *   1. the admin GitHub OAuth session whose login is on the allowlist
+ *      → that login;
+ *   2. a customer sign-in whose provider-verified email is on the allowlist
+ *      (GATETEST_ADMIN_EMAILS, or an email entry in GATETEST_ADMIN_USERNAMES)
+ *      → that email, so the admin shows who is signed in;
+ *   3. the admin-password cookie → "admin".
+ * Every /admin/* route and page had re-implemented the check once
+ * (repos/route.ts's own comment called it out: "copied verbatim from
+ * /api/admin/repos/route.ts"); the admin shell layout, the /admin page and
+ * requireAdminRoute (admin-guard.ts) all call this one.
+ */
+export function getAdminLoginFromCookies(cookieStore: CookieReader): string | null {
   const oauthStatus = getAdminConfig();
   if (oauthStatus.ok && oauthStatus.config) {
     const login = getAdminUser(cookieStore.get(SESSION_COOKIE_NAME)?.value, oauthStatus.config);
     if (login) return login;
   }
+  const customer = getCustomerAdminStatus(cookieStore);
+  if (customer.email) return customer.email;
   if (checkPasswordCookie(cookieStore.get(ADMIN_COOKIE_NAME)?.value)) {
     return "admin";
   }

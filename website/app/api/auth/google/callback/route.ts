@@ -67,12 +67,16 @@ export async function GET(req: NextRequest) {
   // Fetch Google user profile
   let login: string;
   let email: string;
+  let emailVerified: boolean;
   try {
     const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const user = await userRes.json();
     email = user.email || "";
+    // v2 userinfo names it `verified_email`; the OIDC endpoint `email_verified`.
+    // Exactly `true` counts — the admin allowlist by email depends on it.
+    emailVerified = Boolean(email) && (user.verified_email === true || user.email_verified === true);
     // Use email prefix as login identifier (Google has no "username")
     login = user.name || email.split("@")[0] || user.id || "";
 
@@ -83,7 +87,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/login?error=google_user_failed`);
   }
 
-  const token = signCustomerSession(login, email, sessionSecret);
+  const token = signCustomerSession(login, email, sessionSecret, undefined, emailVerified);
   const isProduction = process.env.NODE_ENV === "production";
 
   const response = NextResponse.redirect(`${baseUrl}${landing}`);

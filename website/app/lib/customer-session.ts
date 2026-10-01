@@ -22,6 +22,13 @@ interface CustomerPayload {
   // Node-side handlers. httpOnly prevents browser-script reads.
   // Optional because pre-encryption sessions don't have it (they re-login).
   a?: string;
+  // True only when the sign-in provider verified `e` at sign-in time:
+  // Google `verified_email`, GitHub's /user/emails `verified`, Gluecron
+  // `email_verified` (the callback refuses anything else), email + password
+  // only after the #837 verify link. Absent on sessions signed before the
+  // flag existed and on GitLab sessions — both read as NOT verified. The
+  // admin allowlist by email (admin-allowlist.ts) needs it to be `true`.
+  ev?: boolean;
 }
 
 interface OAuthConfig {
@@ -130,13 +137,15 @@ export function signCustomerSession(
   login: string,
   email: string,
   secret: string,
-  accessToken?: string
+  accessToken?: string,
+  emailVerified = false
 ): string {
   const payload: CustomerPayload = {
     u: login,
     e: email,
     exp: Math.floor(Date.now() / 1000) + CUSTOMER_MAX_AGE_SECONDS,
     ...(accessToken ? { a: accessToken } : {}),
+    ...(emailVerified === true ? { ev: true } : {}),
   };
   // ENCRYPT the payload before signing — the access token bytes must not
   // be readable from a stolen cookie. The encrypted blob ("v2." prefix)
@@ -214,6 +223,39 @@ export function verifyCustomerSession(
 
 export function generateState(): string {
   return b64urlEncode(crypto.randomBytes(24));
+}
+
+/**
+ * The email a GitHub sign-in carries, and whether GitHub verified it.
+ *
+ * `profileEmail` is /user's public email (kept as the session email when
+ * set, as before); `emails` is the /user/emails answer (scope user:email).
+ * Verified means that very address appears in /user/emails with
+ * `verified: true` — a public email we cannot match there is NOT verified.
+ * With no public email the primary verified address is used, else the first
+ * listed one (unverified unless GitHub says otherwise).
+ */
+export function githubSessionEmail(
+  profileEmail: unknown,
+  emails: unknown
+): { email: string; verified: boolean } {
+  const list = Array.isArray(emails)
+    ? (emails as Array<{ email?: unknown; primary?: unknown; verified?: unknown }>).filter(
+        (x) => x && typeof x.email === "string"
+      )
+    : [];
+  const profile = typeof profileEmail === "string" ? profileEmail.trim() : "";
+  if (profile) {
+    const lower = profile.toLowerCase();
+    const verified = list.some(
+      (x) => x.verified === true && String(x.email).trim().toLowerCase() === lower
+    );
+    return { email: profile, verified };
+  }
+  const primary = list.find((x) => x.primary === true && x.verified === true);
+  if (primary) return { email: String(primary.email), verified: true };
+  const first = list[0];
+  return first ? { email: String(first.email), verified: first.verified === true } : { email: "", verified: false };
 }
 
 // ── GitLab OAuth ──────────────────────────────────────────────────────────────

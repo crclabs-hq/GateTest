@@ -73,7 +73,7 @@ function fakeReq({ method = 'GET', cookies = {}, headers = {} } = {}) {
 
 const ENV_KEYS = [
   'GATETEST_ADMIN_PASSWORD', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'NEXT_PUBLIC_BASE_URL',
-  'GITHUB_OAUTH_REDIRECT_URI', 'SESSION_SECRET', 'GATETEST_ADMIN_USERNAMES',
+  'GITHUB_OAUTH_REDIRECT_URI', 'SESSION_SECRET', 'GATETEST_ADMIN_USERNAMES', 'GATETEST_ADMIN_EMAILS',
 ];
 const PASSWORD = 'route-guard-test-' + crypto.randomBytes(6).toString('hex');
 const SESSION_SECRET = crypto.randomBytes(24).toString('hex');
@@ -89,6 +89,7 @@ before(() => {
   process.env.NEXT_PUBLIC_BASE_URL = 'https://gatetest.example';
   process.env.SESSION_SECRET = SESSION_SECRET;
   process.env.GATETEST_ADMIN_USERNAMES = 'owner-login';
+  delete process.env.GATETEST_ADMIN_EMAILS;
 
   const policy = require(path.join(LIB, 'password-auth-policy.js'));
   const { siteUrl } = require(path.join(LIB, 'site-url.js'));
@@ -104,7 +105,13 @@ before(() => {
     }, siteUrl()).ok;
   };
   const auth = loadTs(path.join(LIB, 'admin-auth.ts'), { 'next/server': fakeNextServer });
-  session = loadTs(path.join(LIB, 'admin-session.ts'), { './admin-auth': auth });
+  // admin-session.ts also reads the email allowlist and the customer session
+  // (admin access by provider-verified email — tests/admin-verified-email.test.js).
+  const allowlist = loadTs(path.join(LIB, 'admin-allowlist.ts'), {});
+  const customerSession = loadTs(path.join(LIB, 'customer-session.ts'), {});
+  session = loadTs(path.join(LIB, 'admin-session.ts'), {
+    './admin-auth': auth, './admin-allowlist': allowlist, './customer-session': customerSession,
+  });
   guard = loadTs(path.join(LIB, 'admin-guard.ts'), {
     'next/server': fakeNextServer,
     './admin-auth': auth,

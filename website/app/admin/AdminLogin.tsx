@@ -6,8 +6,16 @@ import Link from "next/link";
 interface AdminLoginProps {
   hasGitHubOAuth: boolean;
   hasPasswordAuth: boolean;
+  /** Customer Google sign-in is configured (getGoogleOAuthConfig().ok). */
+  hasGoogleOAuth?: boolean;
+  /** A customer session is present but is not an allowlisted, verified email. */
+  signedInNotAdmin?: boolean;
   error?: string;
 }
+
+/** Starts the customer Google flow; the callback lands back on /admin (safeNext). */
+const GOOGLE_ADMIN_SIGNIN_HREF = "/api/auth/google?next=%2Fadmin";
+const NOT_ADMIN_MESSAGE = "This account is not an admin.";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_state: "OAuth state mismatch — please try again.",
@@ -19,6 +27,8 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 export default function AdminLogin({
   hasGitHubOAuth,
   hasPasswordAuth,
+  hasGoogleOAuth = false,
+  signedInNotAdmin = false,
   error: oauthError,
 }: AdminLoginProps) {
   const [password, setPassword] = useState("");
@@ -59,15 +69,25 @@ export default function AdminLogin({
     }
   }
 
-  const noAuthConfigured = !hasGitHubOAuth && !hasPasswordAuth;
+  const noAuthConfigured = !hasGitHubOAuth && !hasPasswordAuth && !hasGoogleOAuth;
+  const hasProviderButton = hasGitHubOAuth || hasGoogleOAuth;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6">
       <div className="max-w-sm w-full">
         <h1 className="text-2xl font-bold mb-2 text-center">Admin Access</h1>
 
+        {signedInNotAdmin && (
+          <div role="alert" className="card p-4 mb-6 border-l-4 border-l-border">
+            <p className="text-sm text-foreground font-medium">{NOT_ADMIN_MESSAGE}</p>
+            <p className="text-xs text-muted mt-1">
+              Sign in with an account whose verified email is on the admin allowlist, or use another method below.
+            </p>
+          </div>
+        )}
+
         {noAuthConfigured && (
-          <div className="card p-4 mb-6 border-l-4 border-l-yellow-400">
+          <div className="card p-4 mb-6 border-l-4 border-l-border">
             <p className="text-sm text-muted">
               Admin access is not configured. Set{" "}
               <code className="font-mono text-xs">GATETEST_ADMIN_PASSWORD</code> or configure
@@ -106,7 +126,7 @@ export default function AdminLogin({
           </>
         )}
 
-        {hasGitHubOAuth && hasPasswordAuth && (
+        {hasProviderButton && hasPasswordAuth && (
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 border-t border-border" />
             <span className="text-xs text-muted">or</span>
@@ -121,6 +141,7 @@ export default function AdminLogin({
                 Sign in with GitHub to continue.
               </p>
             )}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- an API route that redirects to GitHub: a full navigation, never a client-side page change */}
             <a
               href="/api/github/admin-login"
               className="btn-primary w-full py-3 text-sm block text-center"
@@ -130,6 +151,22 @@ export default function AdminLogin({
             {oauthMessage && (
               <p className="text-danger text-sm mt-2 text-center">{oauthMessage}</p>
             )}
+          </>
+        )}
+
+        {hasGoogleOAuth && (
+          <>
+            {!hasPasswordAuth && !hasGitHubOAuth && (
+              <p className="text-sm text-muted text-center mb-6">
+                Sign in with Google to continue.
+              </p>
+            )}
+            <a
+              href={GOOGLE_ADMIN_SIGNIN_HREF}
+              className={`btn-primary w-full py-3 text-sm block text-center${hasGitHubOAuth ? " mt-3" : ""}`}
+            >
+              Sign in with Google
+            </a>
           </>
         )}
 
