@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
   const refused = requireAdminRoute(req);
   if (refused) return refused;
 
-  const facts = await getOverviewFacts();
-  return NextResponse.json(facts);
+  // The readiness probe gates operator detail on the same admin session
+  // that just passed requireAdminRoute — forward it (lib/admin-overview.ts).
+  const facts = await getOverviewFacts({ cookie: req.headers.get("cookie") });
+  return NextResponse.json(facts, { headers: { "Cache-Control": "no-store" } });
 }

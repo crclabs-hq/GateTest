@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLiveRefresh, LiveStamp } from "./useLiveRefresh";
 
 type Checked<T> = { checked: true; value: T } | { checked: false; reason: string };
 
 interface WorkerHeartbeat {
+  state: "active" | "stale" | "no_activity";
+  reason: string;
   lastActivityAt: string | null;
   ageSeconds: number | null;
   stale: boolean;
@@ -18,8 +20,8 @@ interface ScanVolume {
   totalCustomers: number;
 }
 interface IntegrationStatus {
-  githubApp: { configured: boolean; lastDeliveryAt: string | null };
-  marketplaceWebhook: { activeInstalls: number | null; lastEventAt: string | null };
+  githubApp: { configured: boolean; lastDeliveryAt: string | null; note: string | null };
+  marketplaceWebhook: { activeInstalls: number | null; lastEventAt: string | null; note: string | null };
   tallrig: { lastEventType: string | null; lastEventAt: string | null };
 }
 interface SecretsChecklistItem {
@@ -29,7 +31,8 @@ interface SecretsChecklistItem {
   placeholder: boolean;
 }
 interface OverviewFacts {
-  readiness: Checked<{ ready: boolean; stripeMode: string | null }>;
+  generatedAt: string;
+  readiness: Checked<{ ready: boolean; stripeMode: string | null; queue: Record<string, unknown> | null }>;
   worker: Checked<WorkerHeartbeat>;
   scans: Checked<ScanVolume>;
   integrations: Checked<IntegrationStatus>;
@@ -52,43 +55,53 @@ function relTime(iso: string | null): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+const WORKER_BADGE: Record<WorkerHeartbeat["state"], { cls: string; label: string }> = {
+  active: { cls: "ok", label: "Active" },
+  stale: { cls: "bad", label: "Stale" },
+  no_activity: { cls: "muted", label: "No activity yet" },
+};
+
+/** "queued: N · running: M" from the readiness probe's queue block, or null if it carried none. */
+function queueLine(queue: Record<string, unknown> | null): string | null {
+  if (!queue) return null;
+  const parts = Object.entries(queue)
+    .filter(([, v]) => typeof v === "number" || typeof v === "string" || typeof v === "boolean")
+    .map(([k, v]) => `${k.replace(/_/g, " ")}: ${String(v)}`);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+function TimestampRow({ label, at, note, empty }: { label: string; at: string | null; note: string | null; empty: string }) {
+  return (
+    <div className="gt-admin-checklist-item">
+      <span>{label}</span>
+      <span className={`gt-admin-badge ${note ? "warn" : at ? "ok" : "muted"}`} title={note ?? at ?? undefined}>
+        {note ? "not read" : at ? relTime(at) : empty}
+      </span>
+    </div>
+  );
+}
+
 export function OverviewDashboard() {
-  const [facts, setFacts] = useState<OverviewFacts | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const live = useLiveRefresh<OverviewFacts>("/api/admin/overview");
+  const facts = live.data;
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/admin/overview", { credentials: "same-origin" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: OverviewFacts) => {
-        if (!cancelled) setFacts(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "overview request failed");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (error) {
-    return (
-      <div className="gt-admin-card" style={{ marginBottom: "1.25rem" }}>
-        <h3>Overview</h3>
-        <NotChecked reason={error} />
-      </div>
-    );
-  }
   if (!facts) {
     return (
       <div className="gt-admin-card" style={{ marginBottom: "1.25rem" }}>
         <h3>Overview</h3>
-        <p className="gt-admin-note">Loading…</p>
+        {live.error ? <NotChecked reason={live.error} /> : <p className="gt-admin-note">Loading…</p>}
       </div>
     );
   }
 
+  const queue = facts.readiness.checked ? queueLine(facts.readiness.value.queue) : null;
+
   return (
+    <>
+    <div className="gt-admin-liveops-head">
+      <h2>Overview</h2>
+      <LiveStamp state={live} />
+    </div>
     <div className="gt-admin-grid" style={{ marginBottom: "1.25rem" }}>
       <div className="gt-admin-card">
         <h3>Readiness</h3>
@@ -102,6 +115,9 @@ export function OverviewDashboard() {
             {facts.readiness.value.stripeMode && (
               <p className="gt-admin-note">Stripe: {facts.readiness.value.stripeMode}</p>
             )}
+            <p className="gt-admin-note">
+              Queue: {queue ?? "the readiness probe reported no queue block"}
+            </p>
           </>
         ) : (
           <NotChecked reason={facts.readiness.reason} />
@@ -113,11 +129,15 @@ export function OverviewDashboard() {
         {facts.worker.checked ? (
           <>
             <div className="gt-admin-card-value">
-              <span className={`gt-admin-badge ${facts.worker.value.stale ? "bad" : "ok"}`}>
-                {facts.worker.value.stale ? "Stale" : "Healthy"}
+              <span className={`gt-admin-badge ${WORKER_BADGE[facts.worker.value.state].cls}`}>
+                {WORKER_BADGE[facts.worker.value.state].label}
               </span>
             </div>
-            <p className="gt-admin-note">Last activity {relTime(facts.worker.value.lastActivityAt)} (24h staleness rule)</p>
+            <p className="gt-admin-note">
+              {facts.worker.value.lastActivityAt
+                ? `Last activity ${relTime(facts.worker.value.lastActivityAt)} — ${facts.worker.value.reason}`
+                : facts.worker.value.reason}
+            </p>
           </>
         ) : (
           <NotChecked reason={facts.worker.reason} />
@@ -152,12 +172,24 @@ export function OverviewDashboard() {
                 {facts.integrations.value.githubApp.configured ? "configured" : "not configured"}
               </span>
             </div>
+            <TimestampRow
+              label="Last GitHub delivery"
+              at={facts.integrations.value.githubApp.lastDeliveryAt}
+              note={facts.integrations.value.githubApp.note}
+              empty="none received"
+            />
             <div className="gt-admin-checklist-item">
               <span>Marketplace webhook</span>
               <span className="gt-admin-badge muted">
                 {facts.integrations.value.marketplaceWebhook.activeInstalls ?? "—"} installs
               </span>
             </div>
+            <TimestampRow
+              label="Last Marketplace event"
+              at={facts.integrations.value.marketplaceWebhook.lastEventAt}
+              note={facts.integrations.value.marketplaceWebhook.note}
+              empty="none received"
+            />
             <div className="gt-admin-checklist-item">
               <span>Tallrig push</span>
               <span className="gt-admin-badge muted">
@@ -192,5 +224,6 @@ export function OverviewDashboard() {
         )}
       </div>
     </div>
+    </>
   );
 }
