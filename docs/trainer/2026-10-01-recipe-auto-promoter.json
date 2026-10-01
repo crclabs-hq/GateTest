@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-10-01T09:50:19.051Z",
+  "proposalsConsidered": 3,
+  "candidatesEvaluated": 2,
+  "rulesGenerated": 0,
+  "rulesSkipped": 2,
+  "rules": [
+    {
+      "status": "no-consensus",
+      "pattern": "fix(website): changelog page casts the gener",
+      "hits": 4
+    },
+    {
+      "status": "already-drafted",
+      "pattern": "fix(cli): one pre-scan line honours both",
+      "ruleName": "projectroot-history-rel-path",
+      "path": "website/app/lib/rule-based-fixer-pending/projectroot-history-rel-path.js"
+    }
+  ]
+}
