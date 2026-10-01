@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-01T01:19:34.025Z",
+  "generatedAt": "2026-10-01T10:19:04.306Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "unknown",
+  "engineCommit": "132ab9ba",
   "repos": [
     {
       "name": "express",
@@ -74,7 +74,7 @@
       "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
       "blocking": 34,
-      "ceiling": 35,
+      "ceiling": 34,
       "softened": 17
     },
     {

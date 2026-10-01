@@ -74,7 +74,7 @@
       "url": "https://github.com/rails/rails.git",
       "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
-      "maxBlocking": 35
+      "maxBlocking": 34
     },
     {
       "name": "spring-petclinic",
