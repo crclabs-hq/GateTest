@@ -26,6 +26,8 @@ interface Payload {
   events?: TallrigEvent[];
   generatedAt?: string;
   error?: string;
+  /** The event ledger could not be read — the list is unknown, not empty. */
+  notChecked?: boolean;
 }
 
 export default function AdminTallrigIntegrationPage() {
@@ -37,10 +39,16 @@ export default function AdminTallrigIntegrationPage() {
     (async () => {
       try {
         const res = await fetch("/api/admin/integrations/tallrig", { cache: "no-store" });
-        const json = (await res.json()) as Payload;
+        let json: Payload = { ok: false };
+        try {
+          json = (await res.json()) as Payload;
+        } catch { /* error-ok — non-JSON body; reported below with res.status */ }
         if (cancelled) return;
         if (res.status === 401) setError("Not signed in as admin. Sign in at /admin first.");
-        else if (!res.ok || !json.ok) setError(json.error || `HTTP ${res.status}`);
+        else if (json.notChecked) setError(`Not checked — HTTP ${res.status}: ${json.error || "event ledger not readable"}`);
+        else if (!res.ok || !json.ok || !Array.isArray(json.events)) {
+          setError(`HTTP ${res.status}: ${json.error || res.statusText || "unexpected response"}`);
+        }
         else setData(json);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Network error");

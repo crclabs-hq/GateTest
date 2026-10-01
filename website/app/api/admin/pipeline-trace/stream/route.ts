@@ -3,9 +3,9 @@
  *
  * Server-Sent Events stream of live scan execution events.
  * Admin-only. Streams the last 20 scans on connect, then polls for new
- * rows every 3 seconds. Closes automatically after 55 seconds to stay
- * within Vercel's function budget; the client's EventSource will
- * reconnect transparently.
+ * rows every 3 seconds. Closes automatically after 55 seconds to bound
+ * each connection; LiveScanFeed reconnects on the `close` event and shows
+ * the reconnect (and any `error` event) in its header.
  *
  * Event types:
  *   scan   — a scan row (id, repo_url, tier, status, score, duration_ms, created_at)
@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
       }
 
       // 2. Poll every 3 seconds for new scans
+      let lastPollError = "";
       intervalId = setInterval(async () => {
         if (closed) return;
         try {
@@ -114,7 +115,16 @@ export async function GET(req: NextRequest) {
             if (ts > since) since = ts;
             ctrl.enqueue(sse("scan", { ...row, created_at: ts.toISOString() }));
           }
-        } catch { /* error-ok — ignore transient DB errors during polling */ }
+          lastPollError = "";
+        } catch (err) {
+          // A failing poll used to be swallowed, so the feed read "live" while
+          // nothing could arrive. Tell the client once per distinct message.
+          const msg = err instanceof Error ? err.message : "poll failed";
+          if (!closed && msg !== lastPollError) {
+            lastPollError = msg;
+            try { ctrl.enqueue(sse("error", { message: `scan poll failed: ${msg}` })); } catch { /* error-ok — stream already gone */ }
+          }
+        }
       }, 3_000);
 
       // 3. Heartbeat every 20 seconds to keep the connection alive through proxies
@@ -122,7 +132,9 @@ export async function GET(req: NextRequest) {
         if (!closed) ctrl.enqueue(enc.encode(": ping\n\n"));
       }, 20_000);
 
-      // 4. Graceful close after 55 seconds — client EventSource reconnects automatically
+      // 4. Graceful close after 55 seconds. LiveScanFeed handles the `close`
+      //    event by reconnecting itself (1s, then backoff on failures) — the
+      //    browser's own auto-reconnect is not relied on.
       closeTimeoutId = setTimeout(() => {
         closed = true;
         cleanup();

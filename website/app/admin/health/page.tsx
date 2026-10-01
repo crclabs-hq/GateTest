@@ -19,13 +19,16 @@ interface HealthReport {
   generated_at: string;
 }
 
+// Ids and labels match what /api/admin/health returns, check for check. The
+// git-host row was keyed "github" while the route answers "gluecron", so it
+// sat at "pending" forever after every run.
 const EXPECTED: Array<{ id: string; label: string }> = [
   { id: "env", label: "Environment variables" },
   { id: "db", label: "Database (Neon Postgres)" },
-  { id: "github", label: "Git host auth" },
+  { id: "gluecron", label: "Gluecron (git host)" },
   { id: "stripe", label: "Stripe API" },
   { id: "anthropic", label: "Anthropic API (Claude)" },
-  { id: "modules", label: "Scan modules" },
+  { id: "modules", label: "Hosted scan modules" },
   { id: "scan", label: "Live scan (in-memory test)" },
   { id: "auth", label: "Auth providers" },
 ];
@@ -40,9 +43,9 @@ const SUGGESTIONS: Record<string, Record<string, string>> = {
     fail: "Check DATABASE_URL in Tallrig → Platform secrets. If the database exists but tables are missing, visit /api/db/init to create them.",
     warn: "Database connected but some tables missing. POST to /api/db/init to create the required tables (scans, customers, api_keys, api_calls, installations, scan_queue).",
   },
-  github: {
-    fail: "Git host auth failed. Verify GLUECRON_BASE_URL and GLUECRON_API_TOKEN are set correctly, or check GATETEST_APP_ID + GATETEST_PRIVATE_KEY for GitHub fallback.",
-    warn: "Git host not configured. Set GLUECRON_BASE_URL + GLUECRON_API_TOKEN for Gluecron, or GATETEST_APP_ID + GATETEST_PRIVATE_KEY for GitHub.",
+  gluecron: {
+    fail: "Gluecron ping or PAT check failed. Verify GLUECRON_BASE_URL and GLUECRON_API_TOKEN are set correctly and the token has API scope.",
+    warn: "Gluecron not configured. Set GLUECRON_BASE_URL + GLUECRON_API_TOKEN.",
   },
   stripe: {
     fail: "Stripe API rejected the key. Check STRIPE_SECRET_KEY in Tallrig → Platform secrets. Test keys start with sk_test_, live keys with sk_live_. Currently pre-launch: use sk_test_ until ready.",
@@ -212,11 +215,17 @@ export default function HealthPage() {
   }
 
   // Merge running skeleton with real results so the list is stable order.
+  // A row the finished report did not answer is NOT pending — the self-test
+  // never checked it, and the row says so. Checks the route returned that this
+  // page does not list are appended, never dropped.
   const displayChecks: Check[] = EXPECTED.map((e) => {
     const real = report?.checks.find((c) => c.id === e.id);
     if (real) return real;
-    return { id: e.id, label: e.label, status: running ? "pending" as const : "pending" as const };
-  });
+    if (report && !running) {
+      return { id: e.id, label: e.label, status: "fail" as const, detail: `Not checked — the self-test returned no result for check id "${e.id}".` };
+    }
+    return { id: e.id, label: e.label, status: "pending" as const };
+  }).concat((report?.checks || []).filter((c) => !EXPECTED.some((e) => e.id === c.id)));
 
   const allGreen = report?.ready === true && report.summary.warn === 0;
   const ready = report?.ready === true;

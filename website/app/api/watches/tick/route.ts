@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { getDb } from "../../../lib/db";
 import { deriveAdminToken } from "../../../lib/admin-auth";
+import { requireAdminRoute } from "@/app/lib/admin-guard";
 import { SITE_URL } from "@/app/lib/site-url";
 
 // Resolved through engine-models so GATETEST_CHEAP_MODEL reaches this
@@ -142,6 +143,23 @@ function authorizedTick(req: NextRequest): boolean {
   return false;
 }
 
+/**
+ * The two callers that may run a tick, in order:
+ *   1. the scheduler — `Authorization: Bearer $CRON_SECRET` (authorizedTick,
+ *      unchanged above);
+ *   2. the signed-in admin pressing "Run Tick Now" in the Watchdog tab —
+ *      the one admin gate every /api/admin route uses (requireAdminRoute),
+ *      with the same-origin check on (`mutating: true`) because a tick
+ *      spends scan and AI budget.
+ * Before this the button sent only the admin cookie, got a 401 in
+ * production, and reported "Tick complete: checked undefined watches".
+ * Returns the refusal to send, or null to run the tick.
+ */
+function tickRefusal(req: NextRequest): NextResponse | null {
+  if (authorizedTick(req)) return null;
+  return requireAdminRoute(req, { mutating: true });
+}
+
 async function scanServer(target: string, baseUrl: string): Promise<ScanResult | null> {
   try {
     const adminToken = deriveAdminToken();
@@ -265,9 +283,8 @@ function extractFixableIssues(modules: Array<{ name: string; status: string; det
 }
 
 export async function GET(req: NextRequest) {
-  if (!authorizedTick(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const refused = tickRefusal(req);
+  if (refused) return refused;
 
   let sql;
   try { sql = getDb(); } catch {

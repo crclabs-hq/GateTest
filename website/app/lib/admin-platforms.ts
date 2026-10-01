@@ -5,9 +5,11 @@
  * callback: the gate runs strict (errors → failure) but with no advisory
  * messaging or "why is this not red?" upgrade prompts.
  *
- * Graceful degradation: if DATABASE_URL is unset or the DB query throws,
- * helpers return empty results — the env-var GATETEST_ADMIN_ORGS fallback
- * still applies, so misconfigured deployments don't silently break.
+ * Failure is reported, never disguised as an empty registry: if
+ * DATABASE_URL is unset or the read throws, listAdminPlatforms /
+ * getAdminOrgs throw with the reason, and add/delete return
+ * { ok: false, error }. The scan worker catches getAdminOrgs and falls back
+ * to the env-var GATETEST_ADMIN_ORGS list; the admin tab shows the error.
  *
  * Schema (idempotent):
  *   admin_platforms(
@@ -61,6 +63,13 @@ export function parseGitHubOrg(input: string): string | null {
   return null;
 }
 
+/**
+ * List the registry. THROWS when the store cannot be read — an unreadable
+ * registry is "not checked", not "no platforms registered" (doctrine 1).
+ * It used to return [] here, so a DB outage rendered as an empty registry
+ * in the admin Platforms tab. Callers that must keep running (the scan
+ * worker's getAdminOrgs().catch(...)) handle the throw themselves.
+ */
 export async function listAdminPlatforms(): Promise<AdminPlatform[]> {
   try {
     const sql = getDb();
@@ -71,8 +80,8 @@ export async function listAdminPlatforms(): Promise<AdminPlatform[]> {
       ORDER BY added_at DESC
     `;
     return rows as AdminPlatform[];
-  } catch {
-    return [];
+  } catch (err) {
+    throw new Error(`admin platform registry not readable: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

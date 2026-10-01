@@ -1,24 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ControlStatus } from "../../lib/compliance-status";
+import type { ControlStatus, ComplianceSnapshot } from "../../lib/compliance-status";
 
-interface Snapshot {
-  generatedAt: string;
-  retention: { auditLogYears: number; scansDays: number };
-  encryption: { atRest: string; inTransit: string };
-  controls: ControlStatus[];
-  audit: {
-    totalEvents: number;
-    last30Days: number;
-    last24Hours: number;
-    distinctActorsLast30Days: number;
-    chainOk: boolean | null;
-    chainBrokenAt?: number;
-  };
-  adminAuth: { lockedAccountsNow: number; failedAttemptsLast24Hours: number };
-  schemaPresent: { audit_log: boolean; admin_auth_attempts: boolean; customer_memory: boolean };
-}
+// One definition of the payload: the lib's own type (doctrine 4).
+type Snapshot = ComplianceSnapshot;
 
 const STATUS_COLOUR: Record<ControlStatus["status"], string> = {
   in_place: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -83,6 +69,12 @@ export default function CompliancePage() {
 
         {!data && !error && <div className="text-sm text-gray-500">Loading…</div>}
 
+        {data?.notCheckedReason && (
+          <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <strong>Not checked</strong> — {data.notCheckedReason}. Every count below is a placeholder, not a measurement.
+          </div>
+        )}
+
         {data && (
           <>
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
@@ -118,14 +110,23 @@ export default function CompliancePage() {
 
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
               <header className="mb-3"><span className="text-xs uppercase tracking-wider font-bold text-gray-700">Audit log activity</span></header>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Stat label="Total events" value={data.audit.totalEvents.toLocaleString()} />
-                <Stat label="Last 30 days" value={data.audit.last30Days.toLocaleString()} />
-                <Stat label="Last 24 hours" value={data.audit.last24Hours.toLocaleString()} />
-                <Stat label="Distinct actors / 30d" value={data.audit.distinctActorsLast30Days.toLocaleString()} />
-              </div>
+              {data.audit.countsNotCheckedReason ? (
+                <NotChecked reason={data.audit.countsNotCheckedReason} />
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Stat label="Total events" value={data.audit.totalEvents.toLocaleString()} />
+                  <Stat label="Last 30 days" value={data.audit.last30Days.toLocaleString()} />
+                  <Stat label="Last 24 hours" value={data.audit.last24Hours.toLocaleString()} />
+                  <Stat label="Distinct actors / 30d" value={data.audit.distinctActorsLast30Days.toLocaleString()} />
+                </div>
+              )}
               <div className="mt-4 text-xs">
-                {data.audit.chainOk === null && <span className="text-gray-500">Hash chain: not yet verified (table empty or unreachable)</span>}
+                {data.audit.chainOk === null && data.audit.chainNotCheckedReason && (
+                  <span className="text-amber-800 font-semibold">⚠ Hash chain: Not checked — {data.audit.chainNotCheckedReason}</span>
+                )}
+                {data.audit.chainOk === null && !data.audit.chainNotCheckedReason && (
+                  <span className="text-gray-500">Hash chain: nothing to verify yet (audit_log is empty)</span>
+                )}
                 {data.audit.chainOk === true && <span className="text-emerald-700 font-semibold">✓ Hash chain intact across the recent 200-row probe window</span>}
                 {data.audit.chainOk === false && (
                   <span className="text-red-700 font-semibold">✗ Hash chain broken at id {data.audit.chainBrokenAt} — tampering or migration error. Investigate.</span>
@@ -135,10 +136,14 @@ export default function CompliancePage() {
 
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
               <header className="mb-3"><span className="text-xs uppercase tracking-wider font-bold text-gray-700">Admin auth posture</span></header>
-              <div className="grid grid-cols-2 gap-3">
-                <Stat label="Locked accounts now" value={data.adminAuth.lockedAccountsNow.toLocaleString()} />
-                <Stat label="Failed attempts / 24h" value={data.adminAuth.failedAttemptsLast24Hours.toLocaleString()} />
-              </div>
+              {data.adminAuth.notCheckedReason ? (
+                <NotChecked reason={data.adminAuth.notCheckedReason} />
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat label="Locked accounts now" value={data.adminAuth.lockedAccountsNow.toLocaleString()} />
+                  <Stat label="Failed attempts / 24h" value={data.adminAuth.failedAttemptsLast24Hours.toLocaleString()} />
+                </div>
+              )}
             </article>
 
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
@@ -154,9 +159,15 @@ export default function CompliancePage() {
             <article className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
               <header className="mb-3"><span className="text-xs uppercase tracking-wider font-bold text-gray-700">Schema presence</span></header>
               <ul className="text-sm space-y-1">
-                <SchemaLine name="audit_log" present={data.schemaPresent.audit_log} />
-                <SchemaLine name="admin_auth_attempts" present={data.schemaPresent.admin_auth_attempts} />
-                <SchemaLine name="customer_memory" present={data.schemaPresent.customer_memory} />
+                {data.notCheckedReason ? (
+                  <li className="text-xs text-amber-800">Not checked — {data.notCheckedReason}</li>
+                ) : (
+                  <>
+                    <SchemaLine name="audit_log" present={data.schemaPresent.audit_log} notChecked={data.schemaNotChecked.audit_log} />
+                    <SchemaLine name="admin_auth_attempts" present={data.schemaPresent.admin_auth_attempts} notChecked={data.schemaNotChecked.admin_auth_attempts} />
+                    <SchemaLine name="customer_memory" present={data.schemaPresent.customer_memory} notChecked={data.schemaNotChecked.customer_memory} />
+                  </>
+                )}
               </ul>
             </article>
           </>
@@ -175,7 +186,25 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SchemaLine({ name, present }: { name: string; present: boolean }) {
+// The third state, rendered distinctly from a value and from a finding.
+function NotChecked({ reason }: { reason: string }) {
+  return (
+    <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+      <strong>Not checked</strong> — {reason}
+    </div>
+  );
+}
+
+function SchemaLine({ name, present, notChecked }: { name: string; present: boolean; notChecked?: string }) {
+  if (notChecked) {
+    return (
+      <li className="flex items-center gap-2 font-mono text-xs">
+        <span className="text-amber-700">?</span>
+        <span className="text-gray-900">{name}</span>
+        <span className="text-amber-800">Not checked — {notChecked}</span>
+      </li>
+    );
+  }
   return (
     <li className="flex items-center gap-2 font-mono text-xs">
       <span className={present ? "text-emerald-700" : "text-gray-400"}>{present ? "✓" : "○"}</span>

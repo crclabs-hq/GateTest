@@ -12,7 +12,8 @@
  * list.
  *
  *   200 { ok: true, events: [...], generatedAt }
- *   401 { error: "Unauthorized" }
+ *   503 { ok: false, notChecked: true, error, generatedAt } — ledger unreadable
+ *   401 { error: "unauthorized" }
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -31,13 +32,22 @@ export async function GET(req: NextRequest) {
   const refused = requireAdminRoute(req);
   if (refused) return refused;
 
-  let events: unknown[] = [];
+  let events: unknown[];
   try {
     events = tallrigPushEventStore.listRecent(RECENT_EVENTS);
   } catch (err) {
-    console.warn(
-      "[admin/integrations/tallrig] could not read event ledger:",
-      err instanceof Error ? err.message : String(err),
+    // An unreadable ledger is NOT "no push events" — it used to answer
+    // ok:true, events:[] here, which the page rendered as an empty history.
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[admin/integrations/tallrig] could not read event ledger:", message);
+    return NextResponse.json(
+      {
+        ok: false,
+        notChecked: true,
+        error: `event ledger not readable: ${message}`,
+        generatedAt: new Date().toISOString(),
+      },
+      { status: 503, headers: { "cache-control": "no-store" } },
     );
   }
 
