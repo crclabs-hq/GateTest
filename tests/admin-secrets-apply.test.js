@@ -240,6 +240,29 @@ describe('panel flows (memory store, temp unit env file)', () => {
       assert.ok(!JSON.stringify(body).includes(VALUE));
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
+  it('every name set in the server env file is listed, values never (2026-10-01)', async () => {
+    const { store, dir, file } = setup();
+    try {
+      const secretValue = 'srv_' + 'abcdefghijklmnopqrstuvwxyz012345';
+      const appEnv = new Map([
+        ['BOX_ONLY_TOKEN', secretValue],          // on the server, in no list: must now appear
+        ['EMPTY_ON_BOX', ''],                      // present but blank: listed as missing
+        ['STRIPE_SECRET_KEY', 'sk_' + 'live_abcdefghijklmnopqrstuv'], // catalogued: one row, not two
+        ['VAPRON_API_TOKEN', 'tok_' + 'abcdefghijklmnopqrstuvwxyz'],  // alias of TALLRIG_API_TOKEN: no extra row
+      ]);
+      const body = await panel.buildListing({ store, runtimeEnv: {}, appEnv, unitEnvFile: file });
+      const box = body.items.find((i) => i.name === 'BOX_ONLY_TOKEN');
+      assert.ok(box, 'a server-only name is listed');
+      assert.deepEqual([box.tier, box.state, box.source], ['custom', 'set', 'env']);
+      assert.match(box.why, /server env file/);
+      assert.equal(body.items.find((i) => i.name === 'EMPTY_ON_BOX').state, 'missing');
+      assert.equal(body.items.filter((i) => i.name === 'STRIPE_SECRET_KEY').length, 1);
+      assert.ok(!body.items.some((i) => i.name === 'VAPRON_API_TOKEN'), 'aliases stay under their canonical row');
+      assert.ok(!JSON.stringify(body).includes(secretValue), 'no value leaves the listing');
+      const control = await panel.buildListing({ store, runtimeEnv: {}, appEnv: null, unitEnvFile: file });
+      assert.ok(!control.items.some((i) => i.name === 'BOX_ONLY_TOKEN'), 'control: without the file it is not invented');
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
   it('apply renders the store; listing then reports applied; a delete whose apply failed is still dropped later', async () => {
     const { store, dir, file } = setup();
     try {
