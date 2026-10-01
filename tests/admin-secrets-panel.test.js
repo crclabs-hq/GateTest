@@ -244,7 +244,7 @@ describe('logic.js', () => {
       { name: 'A', tier: 'required' },
       { name: 'Q', tier: 'weird' },
     ]);
-    assert.deepEqual(g.map((x) => x.label), ['Required', 'Optional', 'Custom']);
+    assert.deepEqual(g.map((x) => x.label), ['Required', 'Optional', 'Custom & server-only']);
     assert.deepEqual(g[0].items.map((i) => i.name), ['A', 'B']);
     assert.deepEqual(logic.groupByTier([]), []);
   });

@@ -29,7 +29,7 @@ const TIER_LABELS = {
   required: 'Required',
   important: 'Important',
   optional: 'Optional',
-  custom: 'Custom',
+  custom: 'Custom & server-only',
 };
 
 /** Env-var shaped names only: UPPER_SNAKE_CASE, starting with a letter. */
