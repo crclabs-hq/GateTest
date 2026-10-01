@@ -18,5 +18,5 @@ export async function GET(req: NextRequest) {
   if (refused) return refused;
 
   const status = await getBuildStatus();
-  return NextResponse.json(status);
+  return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
 }

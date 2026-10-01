@@ -72,23 +72,73 @@ function fail<T>(reason: string): Checked<T> {
   return { checked: false, reason };
 }
 
-async function readReadiness(): Promise<Checked<ReadinessBody>> {
+/** What the caller's admin request carries, forwarded to the in-process probe. */
+export interface OverviewRequestContext {
+  cookie?: string | null;
+}
+
+async function readReadiness(ctx: OverviewRequestContext): Promise<Checked<ReadinessBody>> {
   try {
     const url = siteUrl("/api/status");
-    const res = await readinessGet(new NextRequest(url));
+    // /api/status gates operator detail behind an admin session (GT-02). A
+    // bare in-process request used to get the public body, which lists no
+    // missing secrets — so every secret read "present". Forward the admin's
+    // own cookie so the probe sees the same session that passed our guard.
+    const headers: Record<string, string> = ctx.cookie ? { cookie: ctx.cookie } : {};
+    const res = await readinessGet(new NextRequest(url, { headers }));
     if (res.status !== 200 && res.status !== 503) return fail("readiness probe returned an unexpected status");
     const body = (await res.json()) as ReadinessBody;
-    return body && typeof body === "object" ? ok(body) : fail("readiness probe returned no body");
+    if (!body || typeof body !== "object") return fail("readiness probe returned no body");
+    if (!Array.isArray(body.missing_required)) {
+      return fail("readiness probe returned the public body — operator detail was not authorised for this request");
+    }
+    return ok(body);
   } catch (err) {
     return fail(err instanceof Error ? err.message : "readiness probe failed");
   }
 }
 
 export interface WorkerHeartbeat {
+  /**
+   * "active"      — a job was claimed or finished inside the staleness window
+   * "stale"       — the last activity is older than the window
+   * "no_activity" — the queue exists but no scan has ever been claimed, so
+   *                 there is nothing to call healthy or stale (Doctrine #1:
+   *                 an empty table is not a working worker)
+   */
+  state: "active" | "stale" | "no_activity";
+  reason: string;
   lastActivityAt: string | null;
   ageSeconds: number | null;
   stale: boolean;
   staleThresholdSeconds: number;
+}
+
+/** Pure worker-card verdict — one place decides what the card says. */
+export function classifyWorker(lastActivityAt: string | null, nowMs: number = Date.now()): WorkerHeartbeat {
+  const parsed = lastActivityAt ? Date.parse(lastActivityAt) : NaN;
+  if (!lastActivityAt || !Number.isFinite(parsed)) {
+    return {
+      state: "no_activity",
+      reason: "no scan has been claimed or completed on this database yet",
+      lastActivityAt: null,
+      ageSeconds: null,
+      stale: false,
+      staleThresholdSeconds: WORKER_STALE_SECONDS,
+    };
+  }
+  const ageSeconds = Math.max(0, Math.floor((nowMs - parsed) / 1000));
+  const stale = ageSeconds > WORKER_STALE_SECONDS;
+  return {
+    state: stale ? "stale" : "active",
+    reason: stale
+      ? "no job claimed or finished inside the 24h staleness window"
+      : "a job was claimed or finished inside the 24h staleness window",
+    lastActivityAt,
+    ageSeconds,
+    stale,
+    staleThresholdSeconds: WORKER_STALE_SECONDS,
+  };
 }
 
 async function readWorkerHeartbeat(): Promise<Checked<WorkerHeartbeat>> {
@@ -103,18 +153,12 @@ async function readWorkerHeartbeat(): Promise<Checked<WorkerHeartbeat>> {
       sql`SELECT MAX(GREATEST(started_at, completed_at))::text AS last_activity FROM scan_queue`,
       DB_TIMEOUT_MS,
     )) as Array<{ last_activity: string | null }>;
-    const lastActivityAt = rows[0]?.last_activity ?? null;
-    const ageSeconds = lastActivityAt ? Math.max(0, Math.floor((Date.now() - Date.parse(lastActivityAt)) / 1000)) : null;
-    return ok({
-      lastActivityAt,
-      ageSeconds,
-      stale: ageSeconds === null ? false : ageSeconds > WORKER_STALE_SECONDS,
-      staleThresholdSeconds: WORKER_STALE_SECONDS,
-    });
+    return ok(classifyWorker(rows[0]?.last_activity ?? null));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("does not exist") || message.includes("relation")) {
-      return ok({ lastActivityAt: null, ageSeconds: null, stale: false, staleThresholdSeconds: WORKER_STALE_SECONDS });
+    if (message.includes("does not exist")) {
+      // Was ok({ stale: false }) — which the card painted "Healthy".
+      return fail("scan_queue table does not exist on this database — no scan has ever been queued");
     }
     return fail(message);
   }
@@ -161,16 +205,18 @@ async function readScanVolume(): Promise<Checked<ScanVolume>> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("does not exist") || message.includes("relation")) {
-      return ok({ today: 0, thisWeek: 0, totalScans: 0, totalRevenueUsd: 0, avgScore: 0, totalCustomers: 0 });
+    if (message.includes("does not exist")) {
+      // Was a row of zeros — indistinguishable from a real empty month.
+      return fail("scans / customers tables do not exist on this database");
     }
     return fail(message);
   }
 }
 
 export interface IntegrationStatus {
-  githubApp: { configured: boolean; lastDeliveryAt: string | null };
-  marketplaceWebhook: { activeInstalls: number | null; lastEventAt: string | null };
+  /** `note` is set when a timestamp could not be read — null then means "not read", not "never". */
+  githubApp: { configured: boolean; lastDeliveryAt: string | null; note: string | null };
+  marketplaceWebhook: { activeInstalls: number | null; lastEventAt: string | null; note: string | null };
   tallrig: { lastEventType: string | null; lastEventAt: string | null };
 }
 
@@ -186,11 +232,13 @@ async function readIntegrationStatus(readiness: Checked<ReadinessBody>): Promise
   );
 
   let lastGithubDeliveryAt: string | null = null;
+  let githubNote: string | null = null;
   let sql: ReturnType<typeof getDb> | null = null;
   try {
     sql = getDb();
   } catch {
     sql = null;
+    githubNote = "not read — DATABASE_URL not set";
   }
   if (sql) {
     try {
@@ -199,17 +247,23 @@ async function readIntegrationStatus(readiness: Checked<ReadinessBody>): Promise
         DB_TIMEOUT_MS,
       )) as Array<{ last_github: string | null }>;
       lastGithubDeliveryAt = rows[0]?.last_github ?? null;
-    } catch {
-      // error-ok — this sub-field stays null; the rest of the section still ships
+    } catch (err) {
+      // error-ok — this sub-field stays null with a note; the rest of the section still ships
+      githubNote = `not read — ${err instanceof Error ? err.message : "query failed"}`;
     }
   }
 
   const githubApp = {
     configured: envSet("GITHUB_WEBHOOK_SECRET") && !missingImportant.has("GATETEST_APP_ID") && !missingImportant.has("GATETEST_PRIVATE_KEY"),
     lastDeliveryAt: lastGithubDeliveryAt,
+    note: githubNote,
   };
 
-  let marketplaceWebhook: IntegrationStatus["marketplaceWebhook"] = { activeInstalls: null, lastEventAt: null };
+  let marketplaceWebhook: IntegrationStatus["marketplaceWebhook"] = {
+    activeInstalls: null,
+    lastEventAt: null,
+    note: sql ? null : "not read — DATABASE_URL not set",
+  };
   if (sql) {
     try {
       const summary = await withTimeout(marketplacePurchaseStore.summarize(sql), DB_TIMEOUT_MS);
@@ -220,9 +274,15 @@ async function readIntegrationStatus(readiness: Checked<ReadinessBody>): Promise
       marketplaceWebhook = {
         activeInstalls: summary.activeInstalls,
         lastEventAt: lastRows[0]?.last ?? null,
+        note: null,
       };
-    } catch {
-      // error-ok — table may not exist yet; leave nulls (never a placeholder count)
+    } catch (err) {
+      // error-ok — table may not exist yet; leave nulls with a note (never a placeholder count)
+      marketplaceWebhook = {
+        activeInstalls: null,
+        lastEventAt: null,
+        note: `not read — ${err instanceof Error ? err.message : "query failed"}`,
+      };
     }
   }
 
@@ -255,8 +315,8 @@ export interface OverviewFacts {
   secrets: Checked<SecretsChecklistItem[]>;
 }
 
-export async function getOverviewFacts(): Promise<OverviewFacts> {
-  const readiness = await readReadiness();
+export async function getOverviewFacts(ctx: OverviewRequestContext = {}): Promise<OverviewFacts> {
+  const readiness = await readReadiness(ctx);
   const [worker, scans, integrations] = await Promise.all([
     readWorkerHeartbeat(),
     readScanVolume(),
