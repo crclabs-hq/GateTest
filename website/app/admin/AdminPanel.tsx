@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { StatCard, AdminTabs, type TabDef } from "./ui";
 import { OverviewDashboard } from "./OverviewDashboard";
+import { LiveOps } from "./LiveOps";
 import type { DbData } from "./tabs/types";
 import { RepoScanTab } from "./tabs/RepoScanTab";
 import { ServerScanTab } from "./tabs/ServerScanTab";
@@ -20,7 +21,10 @@ import { AccountsTab } from "./tabs/AccountsTab";
 // shares: the /api/admin/stats data (stats bar + Scans + Customers) and the
 // active-tab switch.
 
+// "overview" is first and the default: /admin opens on what is happening
+// now (live operations + the overview cards), not on an empty scan form.
 const ADMIN_TABS: TabDef[] = [
+  { id: "overview", label: "Overview" },
   { id: "scan", label: "Repo Scan" },
   { id: "server", label: "Server Scan" },
   { id: "nuclear", label: "Forensic Scan", danger: true },
@@ -48,7 +52,7 @@ interface TabSignals {
   /** scans in a failed state → Recent Scans */
   failedScans: number;
 }
-type AdminTabId = "scan" | "server" | "nuclear" | "watchdog" | "scans" | "customers" | "keys" | "platforms" | "accounts";
+type AdminTabId = "overview" | "scan" | "server" | "nuclear" | "watchdog" | "scans" | "customers" | "keys" | "platforms" | "accounts";
 
 interface AdminPanelProps {
   adminLogin: string;
@@ -58,7 +62,7 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
   const [dbData, setDbData] = useState<DbData | null>(null);
   const [dbLoading, setDbLoading] = useState(true);
   const [dbError, setDbError] = useState("");
-  const [activeTab, setActiveTab] = useState<AdminTabId>("scan");
+  const [activeTab, setActiveTab] = useState<AdminTabId>("overview");
   const [statsError, setStatsError] = useState("");
   const [signals, setSignals] = useState<TabSignals>({ siblingsDown: 0, siblingNames: [], failedScans: 0 });
 
@@ -89,9 +93,12 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
       const res = await fetch("/api/admin/platform-siblings", { cache: "no-store" });
       if (!res.ok) return;
       const data = (await res.json()) as {
-        siblings?: Array<{ name: string; healthy: boolean }>;
+        siblings?: Array<{ name: string; healthy: boolean; status?: string }>;
       };
-      const unhealthy = (data.siblings || []).filter((s) => !s.healthy);
+      // "needs_key" means we are not allowed to look (no status key set), not
+      // that the sibling is down — counting it painted a red badge over
+      // healthy platforms. It is shown on the Platforms tab itself instead.
+      const unhealthy = (data.siblings || []).filter((s) => !s.healthy && s.status !== "needs_key");
       setSignals((prev) => ({
         ...prev,
         siblingsDown: unhealthy.length,
@@ -160,11 +167,14 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
   return (
     <div>
       <div className="relative max-w-6xl mx-auto px-6 py-6">
-        {/* Real dashboard — issue #691 item 2 */}
-        <OverviewDashboard />
+        {/* Live operations — first on screen, auto-refreshing every 30s */}
+        <LiveOps />
 
         {/* Stats bar */}
-        {stats && (
+        {/* /api/admin/stats answers zeros plus a `note` when the database is
+            not configured — those zeros are a read that did not happen, so
+            the bar is hidden then and the note below says why. */}
+        {stats && !dbData?.note && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             <StatCard label="Total Scans" value={stats.total_scans} />
             <StatCard label="Customers" value={stats.total_customers} />
@@ -179,15 +189,15 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
         {/* A failing stats endpoint used to be indistinguishable from an
             empty database. Say which it is. */}
         {statsError && (
-          <div className="rounded-xl bg-white border border-red-200 shadow-sm p-4 mb-6 border-l-4 border-l-red-400">
-            <p className="text-sm text-red-700">{statsError}</p>
+          <div className="gt-admin-card gt-admin-ops-banner" data-state="fail">
+            <p>{statsError}</p>
           </div>
         )}
 
         {/* DB init notice */}
         {dbData?.note && (
-          <div className="rounded-xl bg-white border border-yellow-200 shadow-sm p-4 mb-6 border-l-4 border-l-yellow-400">
-            <p className="text-sm text-gray-600">{dbData.note}</p>
+          <div className="gt-admin-card gt-admin-ops-banner" data-state="warn">
+            <p>{dbData.note}</p>
             <button onClick={initDb} className="btn-primary px-4 py-2 text-xs mt-2">
               Initialize Database
             </button>
@@ -195,6 +205,8 @@ export default function AdminPanel({ adminLogin }: AdminPanelProps) {
           </div>
         )}
 
+        {/* Real dashboard — issue #691 item 2 */}
+        {activeTab === "overview" && <OverviewDashboard />}
         {activeTab === "scan" && <RepoScanTab onScanRecorded={loadDbData} />}
         {activeTab === "server" && <ServerScanTab />}
         {activeTab === "nuclear" && <NuclearScanTab />}

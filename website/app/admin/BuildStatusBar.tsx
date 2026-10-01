@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLiveRefresh, secondsAgo } from "./useLiveRefresh";
 
 interface BuildStatus {
   deployedShortCommit: string;
@@ -32,28 +32,17 @@ function mainLabel(main: BuildStatus["main"]): { label: string; tone: "ok" | "wa
   return { label: "vs main: unknown", tone: "warn" };
 }
 
-/** Top-bar fact strip — live deployed commit vs origin/main, deploy freshness. */
+/**
+ * Top-bar fact strip — live deployed commit vs origin/main, deploy freshness.
+ * Re-reads every 30s while the tab is visible; a failed refresh keeps the
+ * last reading and marks it stale rather than blanking the bar.
+ */
 export function BuildStatusBar() {
-  const [status, setStatus] = useState<BuildStatus | null>(null);
-  const [error, setError] = useState(false);
+  const live = useLiveRefresh<BuildStatus>("/api/admin/build-status");
+  const status = live.data;
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/admin/build-status", { credentials: "same-origin" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data: BuildStatus) => {
-        if (!cancelled) setStatus(data);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (error) {
-    return <div className="gt-admin-topbar-facts"><span className="gt-admin-fact"><span className="gt-admin-dot warn" /> build status not checked</span></div>;
+  if (!status && live.error) {
+    return <div className="gt-admin-topbar-facts"><span className="gt-admin-fact"><span className="gt-admin-dot warn" /> build status not checked — {live.error}</span></div>;
   }
   if (!status) {
     return <div className="gt-admin-topbar-facts"><span className="gt-admin-fact">loading build status…</span></div>;
@@ -70,8 +59,15 @@ export function BuildStatusBar() {
       <span className="gt-admin-fact">
         <span className={`gt-admin-dot ${main.tone}`} /> {main.label}
       </span>
-      <span className="gt-admin-fact" title="Time since this build was produced">
+      <span
+        className="gt-admin-fact"
+        title={status.buildStale === null ? "Build is old and main could not be compared" : "Age only counts against a build when main has moved past it"}
+      >
         <span className={`gt-admin-dot ${staleTone}`} /> deployed {formatAge(status.buildAgeSeconds)}
+      </span>
+      <span className="gt-admin-fact" title={live.error ?? "Re-read every 30s while this tab is visible"}>
+        {live.error ? <span className="gt-admin-dot warn" /> : null}
+        {live.error ? "stale · " : ""}checked {secondsAgo(live.lastOkAt, live.now)}
       </span>
     </div>
   );

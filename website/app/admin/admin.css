@@ -486,3 +486,164 @@
 .gt-admin-root :is(.border-gray-200, .border-slate-200) { border-color: var(--gt-admin-l-line); }
 .gt-admin-root .border-gray-300 { border-color: var(--gt-admin-l-line-strong); }
 .gt-admin-root .divide-gray-100 > * + * { border-color: var(--gt-admin-l-line-soft); }
+
+/* === Live operations (LiveOps.tsx, useLiveRefresh.tsx) ================== */
+/* Tokens only — every colour below is a --gt-admin-* value, so both themes
+   follow the three token blocks at the top of this file. */
+
+.gt-admin-liveops {
+  background: var(--gt-admin-surface);
+  border: 1px solid var(--gt-admin-border);
+  border-radius: var(--gt-admin-radius-lg);
+  box-shadow: var(--gt-admin-shadow-sm);
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.gt-admin-liveops-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.gt-admin-liveops-head h2 {
+  display: flex;
+  align-items: center;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--gt-admin-fg);
+  margin: 0;
+}
+
+.gt-admin-live-stamp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--gt-admin-muted);
+}
+
+.gt-admin-live-stamp .gt-admin-badge {
+  text-transform: none;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gt-admin-live-age { font-variant-numeric: tabular-nums; }
+
+.gt-admin-refresh-btn {
+  font: inherit;
+  font-weight: 600;
+  color: var(--gt-admin-accent);
+  background: transparent;
+  border: 1px solid var(--gt-admin-border-strong);
+  border-radius: var(--gt-admin-radius-sm);
+  padding: 0.1875rem 0.625rem;
+  cursor: pointer;
+}
+
+.gt-admin-refresh-btn:hover:not(:disabled) { border-color: var(--gt-admin-accent); }
+.gt-admin-refresh-btn:focus-visible { outline: 2px solid var(--gt-admin-accent); outline-offset: 2px; }
+.gt-admin-refresh-btn:disabled { color: var(--gt-admin-muted); cursor: progress; }
+
+.gt-admin-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.gt-admin-ops-tile {
+  --gt-ops-tone: var(--gt-admin-muted);
+  background: var(--gt-admin-bg-alt);
+  border: 1px solid var(--gt-admin-border);
+  border-left: 4px solid var(--gt-ops-tone);
+  border-radius: var(--gt-admin-radius-md);
+  padding: 0.75rem;
+  min-width: 0;
+}
+
+.gt-admin-ops-tile[data-state="ok"] { --gt-ops-tone: var(--gt-admin-success); }
+.gt-admin-ops-tile[data-state="warn"] { --gt-ops-tone: var(--gt-admin-warning); }
+.gt-admin-ops-tile[data-state="fail"] { --gt-ops-tone: var(--gt-admin-danger); }
+.gt-admin-ops-tile[data-state="not_checked"] { --gt-ops-tone: var(--gt-admin-muted); }
+
+.gt-admin-ops-tile-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.375rem;
+}
+
+.gt-admin-ops-tile-head .gt-admin-badge { white-space: nowrap; }
+
+.gt-admin-ops-tile-head h3 {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gt-admin-muted);
+  margin: 0;
+}
+
+.gt-admin-ops-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--gt-admin-fg);
+  margin: 0.375rem 0 0.25rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.gt-admin-ops-reason {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--gt-admin-fg-secondary);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.gt-admin-ops-dead {
+  margin-top: 0.875rem;
+  border-top: 1px dashed var(--gt-admin-border);
+  padding-top: 0.75rem;
+}
+
+.gt-admin-ops-dead h3 {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gt-admin-danger);
+  margin: 0 0 0.5rem;
+}
+
+.gt-admin-ops-dead ul { list-style: none; margin: 0; padding: 0; }
+
+.gt-admin-ops-dead li {
+  font-size: 0.8125rem;
+  color: var(--gt-admin-fg);
+  padding: 0.3125rem 0;
+  border-bottom: 1px dashed var(--gt-admin-border);
+  overflow-wrap: anywhere;
+}
+
+.gt-admin-ops-dead li:last-child { border-bottom: none; }
+.gt-admin-ops-dead code { color: var(--gt-admin-muted); }
+
+.gt-admin-ops-banner {
+  --gt-ops-tone: var(--gt-admin-muted);
+  border-left: 4px solid var(--gt-ops-tone);
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--gt-admin-fg);
+}
+
+.gt-admin-ops-banner[data-state="warn"] { --gt-ops-tone: var(--gt-admin-warning); }
+.gt-admin-ops-banner[data-state="fail"] { --gt-ops-tone: var(--gt-admin-danger); }
