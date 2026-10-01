@@ -90,6 +90,14 @@ AFTER=""
 RESULT="failed"
 REASON=""
 
+# The systemd invocation this run belongs to ($INVOCATION_ID is set by systemd
+# for every service start; empty for a manual run). It is written into the
+# status line as "run" so pull-deploy-onfailure.sh can tell, from evidence,
+# whether the run that just failed already recorded its own reason — see that
+# script. Sanitised to [A-Za-z0-9-] because it is spliced into JSON.
+RUN_ID="${INVOCATION_ID:-}"
+RUN_ID="${RUN_ID//[^A-Za-z0-9-]/}"
+
 # https://github.com/org/repo(.git) and git@github.com:org/repo(.git) both
 # normalise to the same string, so a box configured with either remote form
 # still matches.
@@ -132,8 +140,8 @@ write_status() {
     first_failed_at=""
   fi
 
-  if ! printf '{"at":"%s","before":"%s","after":"%s","result":"%s","reason":"%s","consecutiveFailures":%s,"firstFailedAt":"%s"}\n' \
-    "$(date -u +%FT%TZ)" "$BEFORE" "$AFTER" "$RESULT" "$escaped_reason" "$consecutive_failures" "$first_failed_at" > "$tmp" 2>/dev/null; then
+  if ! printf '{"at":"%s","before":"%s","after":"%s","result":"%s","reason":"%s","consecutiveFailures":%s,"firstFailedAt":"%s","run":"%s"}\n' \
+    "$(date -u +%FT%TZ)" "$BEFORE" "$AFTER" "$RESULT" "$escaped_reason" "$consecutive_failures" "$first_failed_at" "$RUN_ID" > "$tmp" 2>/dev/null; then
     echo "[pull-deploy] WARNING: could not write $tmp — status not recorded" >&2
     rm -f "$tmp" 2>/dev/null
     return 0
@@ -237,7 +245,12 @@ fi
 # --- forbids force-push, but this is the box-side backstop, not a substitute ---
 # --- for it) must never be deployed silently.
 if ! git merge-base --is-ancestor "$BEFORE" "$AFTER"; then
-  fail "origin/main is not a fast-forward of the deployed commit"
+  # Name the deployed sha and say what to do. A box checkout can carry a
+  # commit that is not on GitHub (2026-09-27: 126c290b, three days of ticks
+  # each refusing in about a second); "not a fast-forward" alone sent the
+  # handoffs looking for a timeout or an OOM kill instead. This refusal is
+  # deliberate provenance protection, so it never resets the box itself.
+  fail "origin/main is not a fast-forward of the deployed commit ${BEFORE:0:12}: that commit is not on origin/main (${AFTER:0:12}), so this box's checkout has a local commit or origin/main was rewritten; refusing to deploy. Recovery is a deliberate human act: DEPLOY_RECOVER=1 (docs/deploy/PULL-DEPLOY.md, 'How recovery differs')"
 fi
 
 echo "[pull-deploy] $BEFORE -> $AFTER"
