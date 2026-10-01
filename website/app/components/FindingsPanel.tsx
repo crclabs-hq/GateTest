@@ -247,7 +247,7 @@ export default function FindingsPanel({ modules, repoUrl, tier, onUpgradeToFix, 
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search file or message"
               aria-label="Search findings by file or message"
-              className="w-full px-3 py-2 pl-8 rounded-lg border border-border bg-white text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+              className="w-full px-3 py-2 pl-8 rounded-lg border border-border bg-surface-solid text-foreground text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
             />
             <svg
               className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted"
@@ -266,7 +266,7 @@ export default function FindingsPanel({ modules, repoUrl, tier, onUpgradeToFix, 
             <select
               value={moduleFilter}
               onChange={(e) => setModuleFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+              className="px-3 py-2 rounded-lg border border-border bg-surface-solid text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
             >
               <option value="all">All modules</option>
               {availableModules.map((m) => (

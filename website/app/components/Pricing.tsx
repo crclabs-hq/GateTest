@@ -225,7 +225,7 @@ function TierCard({
           onChange={(e) => setRepo(e.target.value)}
           placeholder="https://github.com/owner/repo"
           aria-label="Repository URL"
-          className="w-full mb-2 px-3 py-2.5 rounded-lg border border-[var(--border-strong)] text-sm bg-white text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)]"
+          className="w-full mb-2 px-3 py-2.5 rounded-lg border border-[var(--border-strong)] text-sm bg-surface-solid text-[var(--foreground)] placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)]"
         />
       )}
       {error && <p className="text-[var(--danger)] text-xs mb-2">{error}</p>}
