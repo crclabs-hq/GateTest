@@ -999,3 +999,36 @@ Supersedes the 02:20Z block where they differ. Every line checked against GitHub
 **Board:** GateTest Launch Board artifact Version 109 is readable from ccantyusa; the repo file docs/LAUNCH_BOARD.md is the shared truth.
 
 **Traps learned today:** `gh pr update-branch` on a PR that shares files with one just merged can silently drop the other side's lines (#857 lost #856's ledger imports; repaired in #859) — for overlapping PRs merge main by hand in the worktree and rerun both features' tests. The corpus check is not required, so a green merge button does not mean the corpus is green.
+
+### Addendum 2026-09-30 19:35Z — RESUME HERE (written from ccantyusa; for ccantynz, ccantyusa, ccanty48co)
+
+Supersedes the 05:10Z block where they differ. Checked against GitHub, the live site and the box at 19:30Z.
+
+**Production:** gatetest.io serves main 7963bea0 (built 19:08Z). The box deploys itself again: `lastPullDeploy.result = up-to-date`. **Root cause of the 27–30 Sep stall:** the box checkout held a local commit (126c290b, never on GitHub), so every pull-deploy tick refused with "origin/main is not a fast-forward", and the systemd OnFailure hook then overwrote that reason with "killed". Craig ran the recovery deploy (`DEPLOY_RECOVER=1`) at 05:10Z; the local edits are kept in /var/tmp/deploy-recover-20260930T051015Z.patch and a named stash on the box.
+
+**Merged since 05:10Z:** #861 (removed three "[GLUECRON: pending…]" placeholders that went live on /stack when draft #720 was merged; guard test added), #864 (the sign-in gate sent a relative Location, so every anonymous visit to /dashboard answered 500 — now absolute via siteUrl()), #862 and #863 (nightly bots). No open PRs on GateTest.
+
+**Sign-in and admin, as of 19:30Z:**
+- Customer sign-in: GitHub, Google (live since 19:25Z) and email+password. Gluecron shows "coming soon".
+- Admin (gatetest.io/admin): the admin password (Craig reset it today) and "Sign in with GitHub" for the GitHub login listed in `GATETEST_ADMIN_USERNAMES`. There is no email field on the admin page.
+- Box env changed today by Craig: `GATETEST_ADMIN_PASSWORD` reset; `GATETEST_ADMIN_USERNAMES` is ONE line holding his GitHub login and his email, comma-separated; `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` added; `NEXT_PUBLIC_BASE_URL=https://gatetest.io` added (origin only — the code appends each callback path; it was missing, which kept Google off). `SESSION_SECRET` unchanged. The Google Cloud client's redirect URI had the old .ai domain; fixed to https://gatetest.io/api/auth/google/callback.
+
+**In flight:**
+| Stream | Where | State | Next |
+|---|---|---|---|
+| Admin by verified email + "Sign in with Google" on /admin (Craig: Google as an admin backup) | builder clone `scratchpad/gt-admin-email`, branch `feat/admin-by-verified-email` | building; not pushed at 19:30Z | PR merges itself; then Craig signs in with Google once. Emails count from `GATETEST_ADMIN_EMAILS` or any "@" entry in `GATETEST_ADMIN_USERNAMES`; only provider-verified emails; others see "This account is not an admin". If no PR exists, re-issue from this row. |
+| OnFailure hook masks pull-deploy's real reason | worktree `GateTest/.claude/worktrees/agent-a594945fb9596533b`, branch `fix/onfailure-masks-reason` | uncommitted edits (pull-deploy.sh, pull-deploy-onfailure.sh, 2 tests, PULL-DEPLOY.md); builder interrupted by the PC restart | read `git status` there, finish, PR, auto-merge |
+| Site medic (Opus 5.5, autonomous) | jarvis-platform main 9d99c6ba on GitHub; Gluecron remote of record still 6fb303e | token in /opt/jarvis/config/site-medic.env, chmod 600 | deploy through the box's own Claude session: `ssh jarvis`, then `cc`, and ask it to deploy per jarvis-platform docs/handoffs/BUILD-STATUS.md §0A/§0B including PR #11. Never a plain `git pull && restart` on /opt/jarvis (stages 2–4 are undeployed and install.sh at fbea13b can cut co-tenants' outbound network). |
+| Production DB: `audit_log` table missing | box log every 20 min | not done | once signed into the admin, run the DB init (admin route /api/db/init) or add the table in a migration |
+
+**Owner items re-verified 30 Sep 07:30Z (all still open):** release 1.62.0 (npm 1.61.1, v1 at 1fd44421, MCP 1.2.0); arena fixer key (19 draft PRs); Resend (mail check "provider answered unexpectedly"); Marketplace listing 404 and webhook secret (503); box GitHub token refused; Tallrig push registration (receiver 503); CRON_SECRET (Cron Ticks failing); MCP registry (only ai.gatetest.www); DMARC (p=quarantine, reports to an alecrae.com address); wordpress.org (not listed); repo secrets GATETEST_ADMIN_PASSWORD and GATETEST_APP_PRIVATE_KEY absent; duplicate App gatetesthq still public; Gluecron's own /stack lines (Gluecron.com#140). Not checkable from outside: TALLRIG_API_TOKEN, GATETEST_DAILY_API_BUDGET_USD, box-158 rotations, blue/green install. Board rows carry the same evidence.
+
+**Tallrig:** do not press Deploy for GateTest on tallrig.com/start yet (their deploy path does not build from a Dockerfile; packages 1–2 built, 3 building; they will say when a Dockerfile repo deploys for real). Their /start fixes ship in the stack after n. Their own autonomous medic is being built on box B.
+
+**jarvis-platform:** four open PRs (#4 box stranded commits, #5 jarvis-land path, #6 CSO, #9 mirror-drift) carry open decisions per BUILD-STATUS §4; not merged by this session.
+
+**How to hand Craig a box command (he runs them from PowerShell):** every command starts with `ssh jarvis "…"` (alias in ~/.ssh/config, root over Tailscale), or tell him to type `ssh jarvis` first and wait for `root@vultr`. For presence checks of env values, print only "set" / "MISSING", never a value. Never read his terminal panel while an editor shows a secret.
+
+**Traps learned today:** merging a draft marked "needs owner approval" put placeholder text on a public page (always-merge covers green PRs, not drafts awaiting approval); a relative Location from Next's proxy throws Invalid URL; `NEXT_PUBLIC_BASE_URL` must be the bare origin; one line per env name (a duplicate line wins unpredictably).
+
+**Update 20:05Z — main is red; fix this first.** The corpus gate fails on nest: 11 blocking findings against a ceiling of 9 ("Fix the rule — do not raise the ceiling"), and the nightly snapshot website/app/data/precision.json now records nest 10, so `tests/precision-page-sync.test.js` ("nest: measured 10 respects its bound") fails Test + Build and Pre-Merge Sweep on every PR. That blocks #868 (this handoff), #869 (Install Gluecron as the primary homepage button) and #870 (admin access by verified email + "Sign in with Google" on /admin; 36 new tests; owner signs out and in once after deploy). Suspects: the merges of 30 Sep (#857 import-graph dynamic requires and test selection, #856 unit-tests ledger, #858 CSRF assignment rule, #864). Reproduce with `node scripts/real-world-precision.js --repo nest --keep`, name the new findings, fix the rule with a control pair, rerun the full corpus, then regenerate precision.json from a passing run. Snapshots of interrupted work: `wip/feat/admin-by-verified-email` (superseded by #870) and `wip/fix/onfailure-masks-reason` (c423d8f5, unfinished).
