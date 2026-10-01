@@ -335,17 +335,15 @@ describe('7. LiveScanFeed reconnects with backoff and says what is true', () => 
   const src = read(FEED);
 
   it('backoff is 1s, 2s, 5s, … capped at 30s', () => {
-    const noop = () => {};
-    const feed = loadTs(FEED, {
-      react: { useState: noop, useEffect: noop, useRef: noop },
-      'react/jsx-runtime': { jsx: noop, jsxs: noop, Fragment: 'f' },
-    });
+    const feed = require(app('admin/pipeline-trace/reconnect-backoff.js'));
+    assert.match(src, /import \{ reconnectDelayMs \} from "\.\/reconnect-backoff"/, 'the feed uses this backoff');
     assert.equal(typeof feed.reconnectDelayMs, 'function', 'there was no reconnect at all');
     assert.equal(feed.reconnectDelayMs(0), 1000);
     assert.equal(feed.reconnectDelayMs(1), 2000);
     assert.equal(feed.reconnectDelayMs(2), 5000);
-    for (const n of [4, 5, 20, 1000]) assert.ok(feed.reconnectDelayMs(n) <= 30_000);
+    for (const n of [4, 5, 20, 1000]) assert.ok(feed.reconnectDelayMs(n) <= feed.RECONNECT_CAP_MS);
     assert.equal(feed.reconnectDelayMs(1000), 30_000);
+    assert.equal(feed.RECONNECT_CAP_MS, 30_000);
   });
 
   it('the label no longer claims "reconnecting" after closing for good', () => {

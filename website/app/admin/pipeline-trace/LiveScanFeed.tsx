@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { reconnectDelayMs } from "./reconnect-backoff";
 
 interface ScanEvent {
   id: string;
@@ -21,17 +22,6 @@ type FeedStatus =
   | { kind: "disconnected"; reason: string };
 
 const STREAM_URL = "/api/admin/pipeline-trace/stream";
-
-// Backoff after a dropped or refused connection: 1s, 2s, 5s, 10s, then 30s
-// for every attempt after that. A graceful server close (the route ends every
-// stream at 55s) reconnects on the first step and resets the count.
-const RECONNECT_STEPS_MS = [1_000, 2_000, 5_000, 10_000, 30_000];
-export const RECONNECT_CAP_MS = 30_000;
-
-export function reconnectDelayMs(attempt: number): number {
-  const i = Math.max(0, Math.floor(attempt));
-  return Math.min(RECONNECT_STEPS_MS[Math.min(i, RECONNECT_STEPS_MS.length - 1)], RECONNECT_CAP_MS);
-}
 
 // EventSource hides the HTTP status of a failed connect. Ask once with fetch
 // so a 401 says "HTTP 401" instead of looping forever; the body is not read.
