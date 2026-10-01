@@ -43,12 +43,19 @@ export function FleetIntelligencePanel() {
       try {
         const res = await fetch("/api/admin/fleet-intelligence", { credentials: "same-origin" });
         if (cancelled) return;
-        if (res.status === 401) { setError("Not authenticated."); return; }
-        const json = await res.json() as FleetData;
-        if (json.error) { setError(json.error); return; }
+        if (res.status === 401) { setError("HTTP 401: not authenticated — sign in at /admin."); return; }
+        let json: FleetData | null = null;
+        try {
+          json = await res.json() as FleetData;
+        } catch { /* error-ok — non-JSON body; reported below with res.status */ }
+        if (cancelled) return;
+        if (!res.ok || !json || json.error) {
+          setError(`HTTP ${res.status}: ${json?.error || res.statusText || "fleet data unavailable"}`);
+          return;
+        }
         setData(json);
-      } catch {
-        if (!cancelled) setError("Fleet data unavailable.");
+      } catch (err) {
+        if (!cancelled) setError(`Fleet data unavailable: ${err instanceof Error ? err.message : "network error"}`);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -65,7 +72,7 @@ export function FleetIntelligencePanel() {
             Top vulnerability signatures across all customer scans · last 30 days
           </p>
         </div>
-        {data && !loading && (
+        {data && !loading && !data.note && (
           <div className="text-[10px] text-gray-400 text-right shrink-0 ml-4">
             <div className="font-semibold text-gray-600">{data.scansAnalyzed} scans</div>
             <div>analyzed</div>
@@ -83,7 +90,11 @@ export function FleetIntelligencePanel() {
           ))}
         </div>
       ) : error ? (
-        <p className="text-xs text-gray-400 italic">{error}</p>
+        <p role="alert" className="text-xs text-red-700">{error}</p>
+      ) : data?.note ? (
+        // The route answers with a `note` when it could not look (e.g. the scan
+        // history table is missing). That is "not checked", not "no fleet data".
+        <p role="status" className="text-xs text-amber-800">Not checked — {data.note}</p>
       ) : !data || data.signatures.length === 0 ? (
         <p className="text-xs text-gray-400 italic">
           No fleet data yet — appears once customers have completed scans in the last 30 days.

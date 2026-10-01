@@ -13,17 +13,44 @@ interface PlatformRow {
   added_at: string;
 }
 
+// Parse a JSON body without losing the HTTP status when the body is not JSON
+// (an unhandled route error is a bare 500 with no JSON).
+async function readJsonBody(res: Response): Promise<Record<string, unknown>> {
+  try {
+    const d = await res.json();
+    return d && typeof d === "object" ? (d as Record<string, unknown>) : {};
+  } catch { /* error-ok — non-JSON body; the caller still reports res.status */
+    return {};
+  }
+}
+
+// "HTTP 500: Internal Server Error" — status plus the server's own reason.
+function httpFailure(res: Response, data: Record<string, unknown>): string {
+  const reason = data.error || data.message || res.statusText || "no reason given";
+  return `HTTP ${res.status}: ${String(reason)}`;
+}
+
 export function PlatformsTab() {
   const [platforms, setPlatforms] = useState<PlatformRow[]>([]);
   const [platformUrl, setPlatformUrl] = useState("");
   const [platformError, setPlatformError] = useState("");
   const [platformsLoading, setPlatformsLoading] = useState(false);
+  // A failed read is not "No admin platforms registered yet" (doctrine 1).
+  const [platformsLoadError, setPlatformsLoadError] = useState("");
 
   const loadPlatforms = useCallback(async () => {
     setPlatformsLoading(true);
     try {
       const res = await fetch("/api/admin/platforms");
-      if (res.ok) { const d = await res.json(); setPlatforms(d.platforms || []); }
+      const d = await readJsonBody(res);
+      if (!res.ok) {
+        setPlatformsLoadError(`Could not read the platform registry — ${httpFailure(res, d)}`);
+        return;
+      }
+      setPlatformsLoadError("");
+      setPlatforms(Array.isArray(d.platforms) ? (d.platforms as PlatformRow[]) : []);
+    } catch (err) {
+      setPlatformsLoadError(`Could not read the platform registry — ${err instanceof Error ? err.message : "network error"}`);
     } finally { setPlatformsLoading(false); }
   }, []);
 
@@ -38,15 +65,26 @@ export function PlatformsTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: platformUrl }),
     });
-    const d = await res.json();
-    if (!res.ok) { setPlatformError(d.error || "Error"); return; }
+    const d = await readJsonBody(res);
+    if (!res.ok) { setPlatformError(`Add failed — ${httpFailure(res, d)}`); return; }
     setPlatformUrl("");
     loadPlatforms();
   };
 
   const removePlatform = async (org: string) => {
-    const res = await fetch(`/api/admin/platforms?org=${encodeURIComponent(org)}`, { method: "DELETE" });
-    if (res.ok) loadPlatforms();
+    setPlatformError("");
+    try {
+      const res = await fetch(`/api/admin/platforms?org=${encodeURIComponent(org)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await readJsonBody(res);
+        setPlatformError(`Remove ${org} failed — ${httpFailure(res, d)}`);
+        return;
+      }
+    } catch (err) {
+      setPlatformError(`Remove ${org} failed — ${err instanceof Error ? err.message : "network error"}`);
+      return;
+    }
+    loadPlatforms();
   };
 
   return (
@@ -87,6 +125,8 @@ export function PlatformsTab() {
       <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
         {platformsLoading ? (
           <div className="p-8 text-center text-gray-400">Loading...</div>
+        ) : platformsLoadError ? (
+          <div role="alert" className="p-8 text-center text-sm text-red-700">{platformsLoadError}</div>
         ) : platforms.length === 0 ? (
           <div className="p-8 text-center text-gray-400">
             No admin platforms registered yet. Add one above.

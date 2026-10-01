@@ -31,6 +31,23 @@ interface RepoScanState {
   issues?: number;
 }
 
+// Parse a JSON body without letting a non-JSON error page (a proxy 502, an
+// HTML 500) throw away the HTTP status that explains it.
+async function readJsonBody(res: Response): Promise<Record<string, unknown>> {
+  try {
+    const d = await res.json();
+    return d && typeof d === "object" ? (d as Record<string, unknown>) : {};
+  } catch { /* error-ok — non-JSON body; the caller still reports res.status */
+    return {};
+  }
+}
+
+// "HTTP 503: Database not configured" — status plus the server's own reason.
+function httpFailure(res: Response, data: Record<string, unknown>): string {
+  const reason = data.error || data.message || res.statusText || "no reason given";
+  return `HTTP ${res.status}: ${String(reason)}`;
+}
+
 export function WatchdogPanel() {
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,8 +101,17 @@ export function WatchdogPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoUrl: repo.html_url, tier: "full" }),
       });
-      const scanData = await scanRes.json();
-      const issues = (scanData.totalIssues as number) || 0;
+      const scanData = await readJsonBody(scanRes);
+      if (!scanRes.ok) {
+        // A failed scan is NOT "0 issues" — say what failed, with the status.
+        setScanStates((s) => ({ ...s, [repo.full_name]: { status: "error", error: `Scan failed — ${httpFailure(scanRes, scanData)}` } }));
+        return;
+      }
+      if (typeof scanData.totalIssues !== "number") {
+        setScanStates((s) => ({ ...s, [repo.full_name]: { status: "error", error: `Scan not checked — HTTP ${scanRes.status} response had no totalIssues` } }));
+        return;
+      }
+      const issues = scanData.totalIssues;
 
       if (issues === 0) {
         setScanStates((s) => ({ ...s, [repo.full_name]: { status: "done", issues: 0 } }));
@@ -106,14 +132,18 @@ export function WatchdogPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repoUrl: repo.html_url, issues: fixableIssues, tier: "full" }),
       });
-      const fixData = await fixRes.json();
+      const fixData = await readJsonBody(fixRes);
+      if (!fixRes.ok) {
+        setScanStates((s) => ({ ...s, [repo.full_name]: { status: "error", issues, error: `Fix failed — ${httpFailure(fixRes, fixData)}` } }));
+        return;
+      }
       setScanStates((s) => ({
         ...s,
         [repo.full_name]: {
           status: "done",
           issues,
-          prUrl: fixData.prUrl,
-          error: fixData.prUrl ? undefined : (fixData.error || fixData.message),
+          prUrl: typeof fixData.prUrl === "string" ? fixData.prUrl : undefined,
+          error: fixData.prUrl ? undefined : String(fixData.error || fixData.message || "Fix returned no PR"),
         },
       }));
       // Refresh repo list so CI status reflects any changes

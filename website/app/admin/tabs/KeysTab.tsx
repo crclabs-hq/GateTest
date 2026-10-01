@@ -28,6 +28,22 @@ interface NewKeyResult {
   plaintext_key: string;
 }
 
+// Parse a JSON body without losing the HTTP status when the body is not JSON.
+async function readJsonBody(res: Response): Promise<Record<string, unknown>> {
+  try {
+    const d = await res.json();
+    return d && typeof d === "object" ? (d as Record<string, unknown>) : {};
+  } catch { /* error-ok — non-JSON body; the caller still reports res.status */
+    return {};
+  }
+}
+
+// "HTTP 503: Database not configured" — status plus the server's own reason.
+function httpFailure(res: Response, data: Record<string, unknown>): string {
+  const reason = data.error || data.message || res.statusText || "no reason given";
+  return `HTTP ${res.status}: ${String(reason)}`;
+}
+
 export function KeysTab() {
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[] | null>(null);
   const [keyName, setKeyName] = useState("");
@@ -36,17 +52,23 @@ export function KeysTab() {
   const [keyRate, setKeyRate] = useState(60);
   const [newKey, setNewKey] = useState<NewKeyResult | null>(null);
   const [keyError, setKeyError] = useState("");
+  // A failed read is a failed read — not "Loading..." forever and not
+  // "No keys issued yet" (CLAUDE.md doctrine 1: ok / found / NOT CHECKED).
+  const [keysLoadError, setKeysLoadError] = useState("");
+  const [revokeError, setRevokeError] = useState("");
 
   const loadKeys = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/keys");
-      if (res.ok) {
-        const data = await res.json();
-        setApiKeys(data.keys || []);
+      const data = await readJsonBody(res);
+      if (!res.ok) {
+        setKeysLoadError(`Could not load keys — ${httpFailure(res, data)}`);
+        return;
       }
-    } catch {
-      // db not ready — surface as empty
-      setApiKeys([]);
+      setKeysLoadError("");
+      setApiKeys(Array.isArray(data.keys) ? (data.keys as ApiKeyRow[]) : []);
+    } catch (err) {
+      setKeysLoadError(`Could not load keys — ${err instanceof Error ? err.message : "network error"}`);
     }
   }, []);
 
@@ -88,14 +110,19 @@ export function KeysTab() {
 
   async function revokeKey(id: string) {
     if (!confirm(`Revoke key ${id}? This cannot be undone.`)) return;
+    setRevokeError("");
     try {
-      await fetch(`/api/admin/keys?revoke=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/admin/keys?revoke=${encodeURIComponent(id)}`, {
         method: "POST",
       });
-      loadKeys();
-    } catch {
-      /* error-ok — ignore — loadKeys will reflect reality */
+      if (!res.ok) {
+        const data = await readJsonBody(res);
+        setRevokeError(`Revoke ${id} failed — ${httpFailure(res, data)}. The key is still active.`);
+      }
+    } catch (err) {
+      setRevokeError(`Revoke ${id} failed — ${err instanceof Error ? err.message : "network error"}. The key may still be active.`);
     }
+    await loadKeys();
   }
 
   return (
@@ -169,6 +196,9 @@ export function KeysTab() {
       </div>
 
       <div className="rounded-xl bg-white border border-gray-200 shadow-sm overflow-hidden">
+        {revokeError && (
+          <p role="alert" className="px-4 py-3 text-xs text-red-700 bg-red-50 border-b border-red-200">{revokeError}</p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -184,7 +214,11 @@ export function KeysTab() {
               </tr>
             </thead>
             <tbody>
-              {apiKeys === null ? (
+              {keysLoadError ? (
+                <tr>
+                  <td colSpan={8} role="alert" className="p-6 text-center text-red-700">{keysLoadError}</td>
+                </tr>
+              ) : apiKeys === null ? (
                 <tr>
                   <td colSpan={8} className="p-6 text-center text-gray-400">Loading...</td>
                 </tr>

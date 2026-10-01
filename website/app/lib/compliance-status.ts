@@ -22,8 +22,13 @@ export interface ControlStatus {
   evidence: string;
 }
 
-interface ComplianceSnapshot {
+// Three states for every number on the page (CLAUDE.md doctrine 1): a value,
+// a finding, or NOT CHECKED with the reason. A zero that came from a failed
+// query is not a zero — it carries a `…NotCheckedReason` beside it.
+export interface ComplianceSnapshot {
   generatedAt: string;
+  /** Set when nothing could be read at all (e.g. DATABASE_URL unset). */
+  notCheckedReason: string | null;
   retention: {
     auditLogYears: number;
     scansDays: number;
@@ -38,18 +43,30 @@ interface ComplianceSnapshot {
     last30Days: number;
     last24Hours: number;
     distinctActorsLast30Days: number;
-    chainOk: boolean | null; // null = not yet verified (no rows or DB error)
+    /** The count queries failed — the four counts above are not real. */
+    countsNotCheckedReason: string | null;
+    // true = intact, false = broken, null = not verified: either the table is
+    // empty (chainNotCheckedReason null) or the probe failed (reason set).
+    chainOk: boolean | null;
     chainBrokenAt?: number;
+    chainNotCheckedReason: string | null;
   };
   adminAuth: {
     lockedAccountsNow: number;
     failedAttemptsLast24Hours: number;
+    notCheckedReason: string | null;
   };
   schemaPresent: {
     audit_log: boolean;
     admin_auth_attempts: boolean;
     customer_memory: boolean;
   };
+  /** Tables whose existence probe itself failed, with the reason. */
+  schemaNotChecked: Partial<Record<"audit_log" | "admin_auth_attempts" | "customer_memory", string>>;
+}
+
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 const CONTROLS: ControlStatus[] = [
@@ -133,14 +150,15 @@ interface CountRow {
   count: number | string;
 }
 
-async function tableExists(sql: ReturnType<typeof getDb>, name: string): Promise<boolean> {
+// present: the answer; error: the probe failed, so `present` is NOT an answer.
+async function tableExists(sql: ReturnType<typeof getDb>, name: string): Promise<{ present: boolean; error: string | null }> {
   try {
     const rows = (await sql`
       SELECT to_regclass(${`public.${name}`}) AS r
     `) as Array<{ r: string | null }>;
-    return Boolean(rows[0]?.r);
-  } catch {
-    return false;
+    return { present: Boolean(rows[0]?.r), error: null };
+  } catch (err) {
+    return { present: false, error: errMessage(err) };
   }
 }
 
@@ -151,12 +169,13 @@ function num(v: number | string | undefined): number {
 
 /**
  * Build the full compliance snapshot. Designed to never throw — every
- * branch either returns real data or `null`/`0` and lets the dashboard
- * render a "not yet" state.
+ * branch either returns real data or zero WITH a `…NotCheckedReason`, and
+ * the dashboard renders "Not checked — <reason>" for the latter.
  */
 export async function buildComplianceSnapshot(): Promise<ComplianceSnapshot> {
   const snapshot: ComplianceSnapshot = {
     generatedAt: new Date().toISOString(),
+    notCheckedReason: null,
     retention: { auditLogYears: 7, scansDays: 90 },
     encryption: { atRest: "managed_by_neon", inTransit: "tls_required" },
     controls: listControls(),
@@ -165,26 +184,43 @@ export async function buildComplianceSnapshot(): Promise<ComplianceSnapshot> {
       last30Days: 0,
       last24Hours: 0,
       distinctActorsLast30Days: 0,
+      countsNotCheckedReason: null,
       chainOk: null,
+      chainNotCheckedReason: null,
     },
-    adminAuth: { lockedAccountsNow: 0, failedAttemptsLast24Hours: 0 },
+    adminAuth: { lockedAccountsNow: 0, failedAttemptsLast24Hours: 0, notCheckedReason: null },
     schemaPresent: { audit_log: false, admin_auth_attempts: false, customer_memory: false },
+    schemaNotChecked: {},
   };
 
-  // getDb() throws SYNCHRONOUSLY when DATABASE_URL is unset — the one branch
-  // the "designed to never throw" doc comment above didn't actually cover.
-  // A config gap is not a compliance-snapshot failure; return the initialized
-  // (all-false/zero) snapshot rather than letting the route 500.
+  // getDb() throws SYNCHRONOUSLY when DATABASE_URL is unset. A config gap is
+  // not a route failure, but it is NOT an empty audit log either: return the
+  // zeroed snapshot marked not-checked so the page cannot read as healthy.
   let sql: ReturnType<typeof getDb>;
   try {
     sql = getDb();
-  } catch {
+  } catch (err) {
+    const reason = `database not reachable: ${errMessage(err)}`;
+    snapshot.notCheckedReason = reason;
+    snapshot.audit.countsNotCheckedReason = reason;
+    snapshot.audit.chainNotCheckedReason = reason;
+    snapshot.adminAuth.notCheckedReason = reason;
     return snapshot;
   }
 
-  snapshot.schemaPresent.audit_log = await tableExists(sql, "audit_log");
-  snapshot.schemaPresent.admin_auth_attempts = await tableExists(sql, "admin_auth_attempts");
-  snapshot.schemaPresent.customer_memory = await tableExists(sql, "customer_memory");
+  for (const name of ["audit_log", "admin_auth_attempts", "customer_memory"] as const) {
+    const probe = await tableExists(sql, name);
+    snapshot.schemaPresent[name] = probe.present;
+    if (probe.error) snapshot.schemaNotChecked[name] = probe.error;
+  }
+  if (snapshot.schemaNotChecked.audit_log) {
+    const reason = `audit_log existence probe failed: ${snapshot.schemaNotChecked.audit_log}`;
+    snapshot.audit.countsNotCheckedReason = reason;
+    snapshot.audit.chainNotCheckedReason = reason;
+  }
+  if (snapshot.schemaNotChecked.admin_auth_attempts) {
+    snapshot.adminAuth.notCheckedReason = `admin_auth_attempts existence probe failed: ${snapshot.schemaNotChecked.admin_auth_attempts}`;
+  }
 
   if (snapshot.schemaPresent.audit_log) {
     try {
@@ -201,12 +237,16 @@ export async function buildComplianceSnapshot(): Promise<ComplianceSnapshot> {
       if (snapshot.audit.totalEvents > 0) {
         const probe = await verifyRecentChain(sql, 200);
         snapshot.audit.chainOk = probe.ok;
-        if (!probe.ok && probe.brokenAt !== undefined) {
+        snapshot.audit.chainNotCheckedReason = probe.notCheckedReason;
+        if (probe.ok === false && probe.brokenAt !== undefined) {
           snapshot.audit.chainBrokenAt = probe.brokenAt;
         }
       }
-    } catch {
-      // error-ok — partial snapshot is still useful for the dashboard
+    } catch (err) {
+      // The counts are not real — say so beside them instead of showing 0.
+      const reason = `audit_log query failed: ${errMessage(err)}`;
+      snapshot.audit.countsNotCheckedReason = reason;
+      if (snapshot.audit.chainOk === null) snapshot.audit.chainNotCheckedReason = reason;
     }
   }
 
@@ -222,8 +262,8 @@ export async function buildComplianceSnapshot(): Promise<ComplianceSnapshot> {
       `) as CountRow[];
       snapshot.adminAuth.lockedAccountsNow = num(locked[0]?.count);
       snapshot.adminAuth.failedAttemptsLast24Hours = num(fails[0]?.count);
-    } catch {
-      // error-ok
+    } catch (err) {
+      snapshot.adminAuth.notCheckedReason = `admin_auth_attempts query failed: ${errMessage(err)}`;
     }
   }
 
@@ -231,9 +271,11 @@ export async function buildComplianceSnapshot(): Promise<ComplianceSnapshot> {
 }
 
 interface ChainProbe {
-  ok: boolean;
+  /** true intact, false broken, null NOT CHECKED (see notCheckedReason). */
+  ok: boolean | null;
   brokenAt?: number;
   rowsChecked: number;
+  notCheckedReason: string | null;
 }
 
 async function verifyRecentChain(
@@ -246,15 +288,19 @@ async function verifyRecentChain(
     const auditStore = require("./audit-log-store");
     const max = (await sql`SELECT MAX(id)::int AS m FROM audit_log`) as Array<{ m: number | null }>;
     const top = max[0]?.m ?? 0;
-    if (!top) return { ok: true, rowsChecked: 0 };
+    // No rows to verify is "nothing checked", not "intact".
+    if (!top) return { ok: null, rowsChecked: 0, notCheckedReason: "audit_log has no rows to verify" };
     const fromId = Math.max(1, top - windowSize + 1);
     const result = await auditStore.verifyChain(sql, { fromId, toId: top });
     return {
       ok: Boolean(result?.ok),
       brokenAt: result?.brokenAt,
       rowsChecked: top - fromId + 1,
+      notCheckedReason: null,
     };
-  } catch {
-    return { ok: true, rowsChecked: 0 };
+  } catch (err) {
+    // A probe that threw verified nothing. It used to return ok:true here,
+    // which rendered "✓ Hash chain intact" for a chain nobody had read.
+    return { ok: null, rowsChecked: 0, notCheckedReason: `hash-chain probe failed: ${errMessage(err)}` };
   }
 }

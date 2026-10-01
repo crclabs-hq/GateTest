@@ -11,10 +11,10 @@
  * Subsystems checked (real, not fake):
  *   1. Environment variables present
  *   2. Database connection + all 4 tables exist
- *   3. GitHub App auth (mints a JWT + verifies signing key is valid)
+ *   3. Git host auth — Gluecron ping + PAT check (check id "gluecron")
  *   4. Stripe API reachable (hits /v1/balance)
  *   5. Anthropic API reachable (hits /v1/messages with 1-token probe)
- *   6. All 90 scan modules loaded and callable
+ *   6. Every hosted scan module named by a tier (TIERS) loaded and callable
  *   7. Real scan on a tiny public repo (octocat/Hello-World)
  *
  * This endpoint makes real network calls. Expect 5-10s total runtime.
@@ -27,7 +27,7 @@ import crypto from "crypto";
 import { getAdminConfig } from "@/app/lib/admin-session";
 import { getDb } from "@/app/lib/db";
 import { gluecronApi, pingGluecron } from "@/app/lib/gluecron-client";
-import { MODULES, runTier } from "@/app/lib/scan-modules";
+import { MODULES, TIERS, runTier } from "@/app/lib/scan-modules";
 import type { RepoFile } from "@/app/lib/scan-modules";
 
 // Resolved through engine-models so GATETEST_CHEAP_MODEL reaches this
@@ -340,12 +340,19 @@ async function checkAnthropic(): Promise<Check> {
 async function checkModules(): Promise<Check> {
   const started = Date.now();
   const names = Object.keys(MODULES);
-  if (names.length < 22) {
+  // The expectation is derived, not typed (doctrine 7): every module a hosted
+  // tier names (TIERS in lib/scan-modules/types.ts) must have a runner. This
+  // used to compare against a hand-written 22 while the header said 90.
+  const expected = Array.from(new Set(Object.values(TIERS).flat()));
+  const missing = expected.filter((name) => !(name in MODULES));
+  if (names.length === 0 || missing.length > 0) {
     return {
       id: "modules",
-      label: "Scan modules",
+      label: "Hosted scan modules",
       status: "fail",
-      detail: `Only ${names.length} modules registered (expected 22)`,
+      detail: names.length === 0
+        ? "No hosted scan modules registered"
+        : `${missing.length} of ${expected.length} tier-listed modules have no runner: ${missing.join(", ")}`,
       duration: Date.now() - started,
     };
   }
@@ -353,7 +360,7 @@ async function checkModules(): Promise<Check> {
     if (typeof MODULES[name] !== "function") {
       return {
         id: "modules",
-        label: "Scan modules",
+        label: "Hosted scan modules",
         status: "fail",
         detail: `Module "${name}" is not a function`,
         duration: Date.now() - started,
@@ -362,9 +369,9 @@ async function checkModules(): Promise<Check> {
   }
   return {
     id: "modules",
-    label: "Scan modules",
+    label: "Hosted scan modules",
     status: "ok",
-    detail: `${names.length} modules loaded: ${names.join(", ")}`,
+    detail: `${names.length} hosted modules loaded (all ${expected.length} tier-listed present): ${names.join(", ")}`,
     duration: Date.now() - started,
   };
 }

@@ -26,8 +26,15 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const refused = requireAdminRoute(req);
   if (refused) return refused;
-  const platforms = await listAdminPlatforms();
-  return NextResponse.json({ platforms });
+  try {
+    const platforms = await listAdminPlatforms();
+    return NextResponse.json({ platforms });
+  } catch (err) {
+    // listAdminPlatforms throws with the reason instead of returning [] —
+    // pass it on so the tab says why, not "No admin platforms registered".
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `admin platforms could not be read: ${message}` }, { status: 503 });
+  }
 }
 
 export async function POST(req: NextRequest) {

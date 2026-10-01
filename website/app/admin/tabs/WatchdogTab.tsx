@@ -20,6 +20,22 @@ interface WatchRow {
   created_at: string;
 }
 
+// Parse a JSON body without losing the HTTP status when the body is not JSON.
+async function readJsonBody(res: Response): Promise<Record<string, unknown>> {
+  try {
+    const d = await res.json();
+    return d && typeof d === "object" ? (d as Record<string, unknown>) : {};
+  } catch { /* error-ok — non-JSON body; the caller still reports res.status */
+    return {};
+  }
+}
+
+// "HTTP 401: unauthorized" — status plus the server's own reason.
+function httpFailure(res: Response, data: Record<string, unknown>): string {
+  const reason = data.error || data.message || res.statusText || "no reason given";
+  return `HTTP ${res.status}: ${String(reason)}`;
+}
+
 export function WatchdogTab() {
   const [watches, setWatches] = useState<WatchRow[]>([]);
   const [watchesLoading, setWatchesLoading] = useState(false);
@@ -29,19 +45,74 @@ export function WatchdogTab() {
   const [watchAutoFix, setWatchAutoFix] = useState(true);
   const [watchError, setWatchError] = useState("");
   const [watchAdding, setWatchAdding] = useState(false);
+  // A failed read is shown as a failed read — never as the previous list or
+  // as "No watches yet" (CLAUDE.md doctrine 1: ok / found / NOT CHECKED).
+  const [watchesLoadError, setWatchesLoadError] = useState("");
+  const [rowActionError, setRowActionError] = useState("");
+  const [tickRunning, setTickRunning] = useState(false);
+  const [tickOutcome, setTickOutcome] = useState<{ ok: boolean; text: string } | null>(null);
 
   const loadWatches = useCallback(async () => {
     setWatchesLoading(true);
     try {
       const res = await fetch("/api/watches");
-      if (res.ok) {
-        const data = await res.json();
-        setWatches(data.watches || []);
+      const data = await readJsonBody(res);
+      if (!res.ok) {
+        setWatchesLoadError(`Could not load watches — ${httpFailure(res, data)}`);
+        return;
       }
-    } catch { /* error-ok — db not ready — the list stays as it was and loading ends in finally */ } finally {
+      setWatchesLoadError("");
+      setWatches(Array.isArray(data.watches) ? (data.watches as WatchRow[]) : []);
+    } catch (err) {
+      setWatchesLoadError(`Could not load watches — ${err instanceof Error ? err.message : "network error"}`);
+    } finally {
       setWatchesLoading(false);
     }
   }, []);
+
+  async function rowAction(label: string, url: string, init: RequestInit) {
+    setRowActionError("");
+    try {
+      const res = await fetch(url, init);
+      if (!res.ok) {
+        const data = await readJsonBody(res);
+        setRowActionError(`${label} failed — ${httpFailure(res, data)}`);
+      }
+    } catch (err) {
+      setRowActionError(`${label} failed — ${err instanceof Error ? err.message : "network error"}`);
+    }
+    await loadWatches();
+  }
+
+  async function runTick() {
+    setTickRunning(true);
+    setTickOutcome(null);
+    try {
+      // POST: the tick spends scan + AI budget, so the admin-session path
+      // runs the same-origin check (requireAdminRoute mutating) server-side.
+      const res = await fetch("/api/watches/tick", { method: "POST" });
+      const data = await readJsonBody(res);
+      if (!res.ok) {
+        setTickOutcome({ ok: false, text: `Tick failed — ${httpFailure(res, data)}` });
+        return;
+      }
+      if (typeof data.checked !== "number") {
+        setTickOutcome({ ok: false, text: `Tick not confirmed — HTTP ${res.status} response had no "checked" count` });
+        return;
+      }
+      const results = Array.isArray(data.results) ? (data.results as Array<{ target?: string; outcome?: string }>) : [];
+      const lines = results.map((r) => `${r.target ?? "?"}: ${r.outcome ?? "?"}`).join(", ");
+      setTickOutcome({
+        ok: true,
+        text: `Tick ran — checked ${data.checked} due watch${data.checked === 1 ? "" : "es"}${lines ? ` (${lines})` : ""}.`,
+      });
+      await loadWatches();
+    } catch (err) {
+      setTickOutcome({ ok: false, text: `Tick failed — ${err instanceof Error ? err.message : "network error"}` });
+    } finally {
+      setTickRunning(false);
+    }
+  }
 
   useEffect(() => {
     loadWatches();
@@ -150,8 +221,13 @@ export function WatchdogTab() {
             <span className="font-semibold text-gray-900 text-sm">Active Watches</span>
             <button onClick={loadWatches} className="text-xs text-gray-400 hover:text-emerald-600 transition-colors">↻ Refresh</button>
           </div>
+          {rowActionError && (
+            <p role="alert" className="px-5 py-3 text-xs text-red-700 bg-red-50 border-b border-red-200">{rowActionError}</p>
+          )}
           {watchesLoading ? (
             <div className="p-8 text-center text-gray-400">Loading...</div>
+          ) : watchesLoadError ? (
+            <div role="alert" className="p-8 text-center text-red-700 text-sm">{watchesLoadError}</div>
           ) : watches.length === 0 ? (
             <div className="p-8 text-center text-gray-400">No watches yet. Add one above to start the flywheel.</div>
           ) : (
@@ -199,14 +275,11 @@ export function WatchdogTab() {
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           <button
-                            onClick={async () => {
-                              await fetch(`/api/watches?id=${w.id}`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ enabled: !w.enabled }),
-                              });
-                              loadWatches();
-                            }}
+                            onClick={() => rowAction(w.enabled ? "Pause" : "Resume", `/api/watches?id=${w.id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ enabled: !w.enabled }),
+                            })}
                             className="text-xs text-gray-400 hover:text-emerald-600 transition-colors"
                           >
                             {w.enabled ? "Pause" : "Resume"}
@@ -214,8 +287,7 @@ export function WatchdogTab() {
                           <button
                             onClick={async () => {
                               if (!confirm(`Remove watch for ${w.target}?`)) return;
-                              await fetch(`/api/watches?id=${w.id}`, { method: "DELETE" });
-                              loadWatches();
+                              await rowAction("Remove", `/api/watches?id=${w.id}`, { method: "DELETE" });
                             }}
                             className="text-xs text-gray-400 hover:text-red-600 transition-colors"
                           >
@@ -239,21 +311,21 @@ export function WatchdogTab() {
               <p className="text-xs text-gray-500 mt-0.5">Force a watchdog cycle now — scans all due targets immediately.</p>
             </div>
             <button
-              onClick={async () => {
-                try {
-                  const res = await fetch("/api/watches/tick");
-                  const data = await res.json();
-                  alert(`Tick complete: checked ${data.checked} watches.\n${JSON.stringify(data.results, null, 2)}`);
-                  loadWatches();
-                } catch (err) {
-                  alert("Tick failed: " + (err instanceof Error ? err.message : "error"));
-                }
-              }}
-              className="btn-primary px-4 py-2.5 text-sm"
+              onClick={runTick}
+              disabled={tickRunning}
+              className="btn-primary px-4 py-2.5 text-sm disabled:opacity-50"
             >
-              Run Tick Now
+              {tickRunning ? "Running..." : "Run Tick Now"}
             </button>
           </div>
+          {tickOutcome && (
+            <p
+              role={tickOutcome.ok ? "status" : "alert"}
+              className={`text-xs mt-3 ${tickOutcome.ok ? "text-emerald-700" : "text-red-700"}`}
+            >
+              {tickOutcome.text}
+            </p>
+          )}
           <p className="text-xs text-gray-400 mt-3">
             In production a scheduler on Tallrig must hit <code className="font-mono text-emerald-700">/api/watches/tick</code> (GET or POST) every ~5 min with{" "}
             <code className="font-mono text-emerald-700">Authorization: Bearer $CRON_SECRET</code>. This is <strong>not</strong> automatic —
