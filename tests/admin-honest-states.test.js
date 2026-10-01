@@ -341,9 +341,8 @@ describe('7. LiveScanFeed reconnects with backoff and says what is true', () => 
     assert.equal(feed.reconnectDelayMs(0), 1000);
     assert.equal(feed.reconnectDelayMs(1), 2000);
     assert.equal(feed.reconnectDelayMs(2), 5000);
-    for (const n of [4, 5, 20, 1000]) assert.ok(feed.reconnectDelayMs(n) <= feed.RECONNECT_CAP_MS);
+    for (const n of [4, 5, 20, 1000]) assert.ok(feed.reconnectDelayMs(n) <= 30_000);
     assert.equal(feed.reconnectDelayMs(1000), 30_000);
-    assert.equal(feed.RECONNECT_CAP_MS, 30_000);
   });
 
   it('the label no longer claims "reconnecting" after closing for good', () => {

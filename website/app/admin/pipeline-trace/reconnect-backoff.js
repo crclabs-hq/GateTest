@@ -16,4 +16,4 @@ function reconnectDelayMs(attempt) {
   return Math.min(RECONNECT_STEPS_MS[Math.min(i, RECONNECT_STEPS_MS.length - 1)], RECONNECT_CAP_MS);
 }
 
-module.exports = { reconnectDelayMs, RECONNECT_CAP_MS };
+module.exports = { reconnectDelayMs };
