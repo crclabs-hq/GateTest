@@ -141,10 +141,20 @@ describe('env catalogue drift — every process.env read is catalogued or ignore
     for (const f of [...walk(path.join(WEB, 'app')), ...walk(path.join(ROOT, 'src'))]) {
       if (!/\.(ts|tsx|js|mjs|cjs)$/.test(f)) continue;
       const raw = read(f);
-      if (!raw.includes('process.env')) continue;
+      if (!/\benv\b/.test(raw) && !raw.includes('platformEnv')) continue;
       const src = stripComments(raw);
-      for (const m of src.matchAll(/process\.env(?:\.([A-Z_][A-Z0-9_]*)|\[\s*['"]([A-Z_][A-Z0-9_]*)['"]\s*\])/g)) {
+      // Three ways the code reads configuration (2026-10-01: the second and
+      // third were invisible here, so TALLRIG_PUSH_SECRET and TALLRIG_API_KEY
+      // were read in production and never listed in the secrets panel):
+      //   process.env.NAME / process.env['NAME']
+      //   env.NAME / env['NAME'] on an injected env object (testable handlers)
+      //   platformEnv('NAME') / platformEnvNames('NAME') -> TALLRIG_NAME
+      for (const m of src.matchAll(/\benv(?:\.([A-Z_][A-Z0-9_]*)|\[\s*['"]([A-Z_][A-Z0-9_]*)['"]\s*\])/g)) {
         const n = m[1] || m[2];
+        if (!out.has(n)) out.set(n, path.relative(ROOT, f));
+      }
+      for (const m of src.matchAll(/\bplatformEnv(?:Names)?\(\s*['"]([A-Z_][A-Z0-9_]*)['"]/g)) {
+        const n = `TALLRIG_${m[1]}`;
         if (!out.has(n)) out.set(n, path.relative(ROOT, f));
       }
     }
@@ -172,6 +182,12 @@ describe('env catalogue drift — every process.env read is catalogued or ignore
 
   it('the drift check fires on a planted read (positive control)', () => {
     assert.ok(!known.has('GATETEST_PLANTED_DRIFT_PROBE') && !ignored.has('GATETEST_PLANTED_DRIFT_PROBE'));
+  });
+
+  it('reads through an injected env object and platformEnv() are seen (the 2026-10-01 blind spot)', () => {
+    const found = reads();
+    assert.ok(found.has('TALLRIG_PUSH_SECRET'), 'env.TALLRIG_PUSH_SECRET in lib/tallrig-push-events.js');
+    assert.ok(found.has('TALLRIG_API_KEY'), "platformEnv('API_KEY') in lib/mail-transport.js");
   });
 });
 

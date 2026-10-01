@@ -50,6 +50,7 @@ const IMPORTANT = [
   { name: "TALLRIG_BASE_URL", why: "runtime-scan dispatch to the Tallrig worker tier disabled — /web and /wp scans ship static probes only" },
   { name: "TALLRIG_API_TOKEN", why: "pairs with TALLRIG_BASE_URL — Tallrig rejects unauthenticated dispatch" },
   { name: "TALLRIG_DISPATCH_SECRET", why: "pairs with TALLRIG_BASE_URL — signs outbound jobs and verifies Tallrig's result callbacks" },
+  { name: "TALLRIG_PUSH_SECRET", why: "Tallrig's deploy-event push to POST /api/integrations/tallrig/events is refused with 503 — the admin never hears about Tallrig-side deploys. Issued by Tallrig when the push endpoint is registered" },
   { name: "GATETEST_RECIPE_STORE_TOKEN", why: "fix-recipe WRITES (PUT /api/recipes) are refused with 503 until set — the flywheel cannot learn from CLI fixes; must equal the token CLI users set as GATETEST_RECIPE_STORE_TOKEN" },
   // ── Gluecron: the PREFERRED git host (Craig 2026-08-29 — customers may use
   // GitHub, but we steer them to Gluecron). These were classified "purely
@@ -98,6 +99,12 @@ const OPTIONAL = [
   "GATETEST_SSH_HOST", "GATETEST_SSH_PORT", "GATETEST_SSH_USER", "GATETEST_SSH_KEY", "GATETEST_SSH_PASSWORD",
   "GATETEST_SSH_HOSTNAMES",
   "GATETEST_SECRETS_MASTER_KEY_NEXT",
+  // Added 2026-10-01: read through an injected `env` object or platformEnv(),
+  // which the drift test could not see until then — TALLRIG_PUSH_SECRET was
+  // read in production and listed nowhere.
+  "TALLRIG_PUSH_KEY_ID", "TALLRIG_API_KEY", "MAIL_PROVIDER", "MAIL_FROM",
+  "GATETEST_HMAC_SECRET", "GATETEST_ADMIN_ORGS",
+  "SENTRY_ORG", "SENTRY_PROJECT", "DATADOG_APP_KEY", "DD_SITE", "DD_SERVICE",
 ];
 
 // One `why` per OPTIONAL name — the secrets panel shows it next to the row.
@@ -105,6 +112,17 @@ const OPTIONAL = [
 // object: `SOME_SECRET: "text"` reads as a hardcoded credential to the
 // secrets module (and to every other scanner a customer runs on this repo).
 const OPTIONAL_WHY_LIST = [
+  { name: "TALLRIG_PUSH_KEY_ID", why: "pairs with TALLRIG_PUSH_SECRET — when set, a Tallrig push whose X-Tallrig-Key-Id differs is refused (key rotation)" },
+  { name: "TALLRIG_API_KEY", why: "Tallrig platform mail transport bearer (MAIL_PROVIDER=tallrig) — falls back to TALLRIG_API_TOKEN when unset" },
+  { name: "MAIL_PROVIDER", why: "which service sends e-mail: 'resend' or 'tallrig' — unset sends through Resend while RESEND_API_KEY is set" },
+  { name: "MAIL_FROM", why: "From-address for outgoing mail — unset uses watchdog@ on the site domain" },
+  { name: "GATETEST_HMAC_SECRET", why: "alternative to GLUECRON_CALLBACK_SECRET: signs scan-result callbacks to Gluecron with X-GateTest-Signature" },
+  { name: "GATETEST_ADMIN_ORGS", why: "admin allowlist by GitHub org: members of these orgs pass the admin GitHub sign-in" },
+  { name: "SENTRY_ORG", why: "pairs with SENTRY_AUTH_TOKEN — which Sentry org production-error correlation reads" },
+  { name: "SENTRY_PROJECT", why: "pairs with SENTRY_AUTH_TOKEN — which Sentry project production-error correlation reads" },
+  { name: "DATADOG_APP_KEY", why: "pairs with DATADOG_API_KEY — Datadog requires both to read errors" },
+  { name: "DD_SITE", why: "Datadog site (e.g. datadoghq.eu) — unset uses datadoghq.com" },
+  { name: "DD_SERVICE", why: "Datadog service name to read errors for" },
   { name: "SLACK_WEBHOOK_URL", why: "scan-result notifications to Slack are skipped" },
   { name: "GITLAB_CLIENT_ID", why: "customer 'Sign in with GitLab' disabled" },
   { name: "GITLAB_CLIENT_SECRET", why: "pairs with GITLAB_CLIENT_ID" },
@@ -156,6 +174,11 @@ const ALIASES = {
   TALLRIG_BASE_URL: ["VAPRON_BASE_URL", "CRONTECH_BASE_URL"],
   TALLRIG_API_TOKEN: ["VAPRON_API_TOKEN", "CRONTECH_API_TOKEN"],
   TALLRIG_DISPATCH_SECRET: ["VAPRON_DISPATCH_SECRET", "CRONTECH_DISPATCH_SECRET"],
+  TALLRIG_API_KEY: ["VAPRON_API_KEY", "CRONTECH_API_KEY"],
+  // gluecron-callback.js reads either name of each pair (one-definition merge
+  // of the .ts and .js callbacks, which had each used one of them).
+  GLUECRON_CALLBACK_SECRET: ["GATETEST_CALLBACK_SECRET"],
+  GLUECRON_CALLBACK_URL: ["GLUECRON_URL"],
 };
 
 /**
@@ -166,7 +189,9 @@ const IGNORED = [
   {
     reason: 'injected by the runtime / build / CI, never set by an operator in the app env file',
     names: ['NODE_ENV', 'PORT', 'HOME', 'VERCEL_ENV', 'APP_VERSION', 'GIT_COMMIT', 'GITHUB_ACTIONS',
-      'GITHUB_REPOSITORY', 'GITHUB_WORKSPACE', 'GITHUB_SHA', 'PULL_DEPLOY_STATUS_FILE'],
+      'GITHUB_REPOSITORY', 'GITHUB_WORKSPACE', 'GITHUB_SHA', 'PULL_DEPLOY_STATUS_FILE',
+      'GITHUB_RUN_ID', 'GITHUB_SERVER_URL', 'GITHUB_EVENT_NAME', 'GITHUB_EVENT_PATH', 'GITHUB_BASE_REF', 'CI',
+      'NO_COLOR', 'FORCE_COLOR', 'NODE_TEST_CONTEXT', 'GATETEST_BUILD_COMMIT'],
   },
   {
     reason: "read by the scan engine (src/) from the CUSTOMER's environment when they run the CLI — not configuration of this website",
@@ -176,7 +201,9 @@ const IGNORED = [
       'GATETEST_DEPLOY_HOOK', 'GATETEST_DESIGN_COMPLIANCE_URL', 'GATETEST_FORM_TESTING_URL', 'GATETEST_INTERACTIVE_URL',
       'GATETEST_MOBILE_URL', 'GATETEST_PERF_BUDGET_URL', 'GATETEST_PURGE_WEBHOOK', 'GATETEST_REPORTS_DIR',
       'GATETEST_RESTART_HOOK', 'GATETEST_SANDBOX_TASK', 'GATETEST_SANDBOX_WORKER', 'GATETEST_VISUAL_URL',
-      'GATETEST_MODEL_VERDICTS_BLOCK', 'GATETEST_NO_UPSELL', 'GATETEST_WEBHOOK_SECRET', 'GATETEST_API_KEY'],
+      'GATETEST_MODEL_VERDICTS_BLOCK', 'GATETEST_NO_UPSELL', 'GATETEST_WEBHOOK_SECRET', 'GATETEST_API_KEY',
+      'GATETEST_NO_QUARANTINE', 'GATETEST_OFFLINE', 'GATETEST_NO_TELEMETRY', 'GATETEST_TELEMETRY', 'GATETEST_TELEMETRY_URL',
+      'GATETEST_TELEMETRY_ALLOW_HOST', 'GATETEST_REPORT_SIGNING_KEY'],
   },
   {
     reason: 'non-secret tunables and build-time public flags — they belong in the app env file, not the secrets panel',
@@ -188,7 +215,9 @@ const IGNORED = [
       'GATETEST_MAX_TOKENS_PER_SCAN', 'GATETEST_MAX_TOKENS_QUICK', 'GATETEST_MAX_TOKENS_SCAN_FIX', 'GATETEST_MAX_USD_FULL',
       'GATETEST_MAX_USD_NUCLEAR', 'GATETEST_MAX_USD_PER_SCAN', 'GATETEST_MAX_USD_QUICK', 'GATETEST_MAX_USD_SCAN_FIX',
       'NEXT_PUBLIC_LAUNCH_HN', 'NEXT_PUBLIC_LIVE_COUNTER', 'NEXT_PUBLIC_PLATFORM_API_URL', 'NEXT_PUBLIC_PLATFORM_ENTITY',
-      'NEXT_PUBLIC_PLATFORM_ID', 'NEXT_PUBLIC_PLATFORM_NAME', 'NEXT_PUBLIC_PLATFORM_URL'],
+      'NEXT_PUBLIC_PLATFORM_ID', 'NEXT_PUBLIC_PLATFORM_NAME', 'NEXT_PUBLIC_PLATFORM_URL',
+      'PLATFORM_SERVICE_PREFIX', 'PLATFORM_CANONICAL_HOST', 'TALLRIG_MAIL_URL', 'TALLRIG_STATUS_URL',
+      'GATETEST_RELEASE_NOTIFY_ENABLED', 'GATETEST_WEB_SCAN_BUDGET_MS'],
   },
   {
     reason: "the secrets panel's own path overrides (where it writes the unit env file / reads the app env file) — never a secret",
