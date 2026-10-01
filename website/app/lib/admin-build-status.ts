@@ -24,7 +24,12 @@ export interface BuildStatus {
   deployedShortCommit: string;
   builtAt: string | null;
   buildAgeSeconds: number | null;
-  /** 24h ceiling, matching the worker-heartbeat staleness rule (#688). */
+  /**
+   * True only when main has moved past the deployed commit AND the build is
+   * older than the 24h ceiling. A week-old build identical to main is a quiet
+   * week, not a broken deploy. Null when main could not be compared and the
+   * build is old — unknown, not good and not bad. See isBuildStale().
+   */
   buildStale: boolean | null;
   main: {
     /** "ahead" | "behind" | "identical" | "diverged" | "unknown" */
@@ -104,6 +109,16 @@ async function compareToMain(commit: string): Promise<BuildStatus["main"]> {
   }
 }
 
+/** One definition of "the running build is stale" — age only matters when behind main. */
+export function isBuildStale(buildAgeSeconds: number | null, main: BuildStatus["main"]): boolean | null {
+  if (buildAgeSeconds === null) return null;
+  const old = buildAgeSeconds > BUILD_STALE_SECONDS;
+  if (main.status === "identical" || main.status === "ahead") return false;
+  if (main.status === "behind") return old;
+  // diverged / unknown: we cannot say whether main moved on.
+  return old ? null : false;
+}
+
 export async function getBuildStatus(): Promise<BuildStatus> {
   const commit = deployedCommit();
   const builtAt = buildInfo.builtAt ?? null;
@@ -118,7 +133,7 @@ export async function getBuildStatus(): Promise<BuildStatus> {
     deployedShortCommit: commit === "unknown" ? "unknown" : commit.slice(0, 7),
     builtAt,
     buildAgeSeconds,
-    buildStale: buildAgeSeconds === null ? null : buildAgeSeconds > BUILD_STALE_SECONDS,
+    buildStale: isBuildStale(buildAgeSeconds, main),
     main,
     checkedAt: new Date().toISOString(),
   };
