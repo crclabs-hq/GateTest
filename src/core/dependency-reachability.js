@@ -16,9 +16,17 @@
  *   installed-unused production dependency, but no non-test source file
  *                    imports it (or its direct root)
  *   reachable        production dependency AND imported from source
+ *   workspace        the advisory names a package this repository PUBLISHES
+ *                    (a workspace member): its source is the tree under scan,
+ *                    so "upgrade it" is meaningless — the fix is a commit
+ *                    here and a release. nest @ 39fbddae, 2026-09-30: new
+ *                    advisories against @nestjs/microservices 12.0.0–12.0.2
+ *                    and @nestjs/platform-fastify 12.0.0–12.0.1 (the repo's
+ *                    own packages/*, at 12.0.1) blocked nest's gate overnight
+ *                    with no change on either side.
  *
  * Only `reachable` critical/high advisories should BLOCK. The others are
- * shown — as warning (installed-unused) or info (dev-only / low) — with the
+ * shown — as warning (installed-unused, workspace) or info (dev-only / low) — with the
  * reason stated, never hidden. Pure functions + a tiny fs adapter so it is
  * testable on fixture JSON.
  */
@@ -28,6 +36,7 @@ const path = require('path');
 const { repoRelative } = require('./repo-path');
 const { isTestPath } = require('./test-paths');
 const { buildImportGraph, collectSourceFiles } = require('./import-graph');
+const { workspacePackageNames } = require('./workspaces');
 
 // "Is this a test path" comes from the one definition (src/core/test-paths.js).
 // This walker asks a BROADER question — is the file SHIPPED production source?
@@ -138,13 +147,14 @@ function directRootsOf(name, vulns, manifest, seen = new Set()) {
 
 /**
  * @param {object} audit          parsed `npm audit --json`
- * @param {object} ctx            { manifest: {prod,dev}, imported: Set<string> }
+ * @param {object} ctx            { manifest: {prod,dev}, imported: Set<string>, workspaces?: Set<string> }
  * @returns {Array<{name, severity, class, roots, reason, fixAvailable, direct}>}
  */
 function classifyAdvisories(audit, ctx) {
   const vulns = (audit && audit.vulnerabilities) || {};
   const manifest = ctx.manifest || { prod: new Set(), dev: new Set() };
   const imported = ctx.imported || new Set();
+  const workspaces = ctx.workspaces || new Set();
   const out = [];
   for (const [name, v] of Object.entries(vulns)) {
     const severity = String(v.severity || 'info').toLowerCase();
@@ -154,7 +164,10 @@ function classifyAdvisories(audit, ctx) {
     const anyImported = [name, ...roots].some((r) => imported.has(r));
     let cls;
     let reason;
-    if (devOnly) {
+    if (workspaces.has(name)) {
+      cls = 'workspace';
+      reason = `${name} is published from this repository (a workspace member) — the advisory is against its own released version; the fix is a release from this tree, not a dependency upgrade`;
+    } else if (devOnly) {
       cls = 'dev-only';
       reason = `pulled in only by devDependencies (${roots.join(', ')}) — never ships to production`;
     } else if (!anyImported) {
@@ -173,15 +186,16 @@ function classifyAdvisories(audit, ctx) {
 function gateSeverity(item) {
   const hi = item.severity === 'critical' || item.severity === 'high';
   if (item.class === 'reachable') return hi ? 'error' : 'warning';
-  if (item.class === 'installed-unused') return hi ? 'warning' : 'info';
+  if (item.class === 'installed-unused' || item.class === 'workspace') return hi ? 'warning' : 'info';
   return 'info';
 }
 
 function analyseProject(audit, projectRoot) {
   const manifest = readManifest(projectRoot);
   const imported = collectImportedPackages(projectRoot);
-  const items = classifyAdvisories(audit, { manifest, imported });
-  const counts = { reachable: 0, 'installed-unused': 0, 'dev-only': 0 };
+  const workspaces = workspacePackageNames(projectRoot);
+  const items = classifyAdvisories(audit, { manifest, imported, workspaces });
+  const counts = { reachable: 0, 'installed-unused': 0, 'dev-only': 0, workspace: 0 };
   for (const i of items) counts[i.class]++;
   return { items, counts, imported, manifest };
 }
