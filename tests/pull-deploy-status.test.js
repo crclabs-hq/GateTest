@@ -105,6 +105,23 @@ describe('pull-deploy-status', () => {
     assert.equal(out.firstFailedAt, null);
   });
 
+  it('a line carrying the "run" invocation id (2026-09-30) reads with the same API shape, run not exposed', () => {
+    const file = '/var/lib/gatetest/pull-deploy-status.json';
+    const fixture = JSON.stringify({
+      at: '2026-09-30T05:00:00Z',
+      before: 'a', after: 'b', result: 'failed',
+      reason: 'origin/main is not a fast-forward of the deployed commit aaaaaaaaaaaa: ...',
+      consecutiveFailures: 2, firstFailedAt: '2026-09-27T05:00:00Z',
+      run: '0123456789abcdef0123456789abcdef',
+    });
+    const _fs = makeFakeFs(new Map([[file, fixture]]));
+    const out = readLastPullDeploy({ _fs, filePath: file });
+    assert.deepEqual(Object.keys(out).sort(), ['at', 'consecutiveFailures', 'firstFailedAt', 'from', 'reason', 'result', 'to']);
+    assert.equal(out.result, 'failed');
+    assert.match(out.reason, /not a fast-forward/);
+    assert.equal(out.consecutiveFailures, 2);
+  });
+
   it('an appended (multi-line) status file — as an OnFailure append leaves it — reads the LAST line only', () => {
     const file = '/var/lib/gatetest/pull-deploy-status.json';
     const oldLine = JSON.stringify({
