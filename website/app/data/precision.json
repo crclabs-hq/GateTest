@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-30T09:53:28.240Z",
+  "generatedAt": "2026-10-01T01:19:34.025Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "ac161dbb",
+  "engineCommit": "unknown",
   "repos": [
     {
       "name": "express",
@@ -145,7 +145,7 @@
       "url": "https://github.com/nestjs/nest.git",
       "sha": "39fbddae51281ca56bf2fed9123d98e61509066c",
       "why": "TypeScript monorepo (npm workspaces) with an integration/ e2e tree and sample apps — first contact 39 blocking: a logger class told it uses console, tsconfig flags as build verdicts, mongodb://localhost fixtures as secrets, `.catch(() => {})` on a stored promise the caller awaits; what remains is six `reduce(async …)` in the e2e app, two npm-audit advisories and one committed PKCS#8 key",
-      "blocking": 10,
+      "blocking": 9,
       "ceiling": 9,
       "softened": 1
     },
@@ -1039,7 +1039,7 @@
           "sha": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8"
         }
       ],
-      "controlPairs": 0
+      "controlPairs": 1
     },
     {
       "rule": "html:unclosed:html",
@@ -1206,19 +1206,6 @@
         {
           "name": "cleanarchitecture",
           "sha": "3a06afb9258c1f5a9d8e7103bd1479246fa4166a"
-        }
-      ],
-      "controlPairs": 0
-    },
-    {
-      "rule": "security:npm-audit:@nestjs/microservices",
-      "module": "security",
-      "findings": 1,
-      "onZeroCeilingRepos": 0,
-      "repos": [
-        {
-          "name": "nest",
-          "sha": "39fbddae51281ca56bf2fed9123d98e61509066c"
         }
       ],
       "controlPairs": 0
@@ -1672,7 +1659,7 @@
     "bands": [
       {
         "confidence": 1,
-        "precision": 158,
+        "precision": 157,
         "recall": 53,
         "rules": {
           "precision": {
@@ -1715,7 +1702,6 @@
             "bash-safety:pipe-true": 2,
             "secrets:gitignore-.env": 1,
             "kotlin:todo-call": 6,
-            "security:npm-audit:@nestjs/microservices": 1,
             "security:npm-audit:ws": 1,
             "security:npm-audit": 1,
             "async-iteration:async-reduce": 6,
@@ -1865,61 +1851,61 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 222,
+        "precisionBlocking": 221,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.65,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.7,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": true
       },
       {
         "threshold": 0.75,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.8,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.85,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.9,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.95,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 1,
-        "precisionBlocking": 158,
+        "precisionBlocking": 157,
         "recallBlocking": 53,
         "shipped": false
       }
@@ -1929,8 +1915,8 @@
       "above": 1
     },
     "softened": {
-      "precisionTotal": 324,
-      "precisionBlocking": 158,
+      "precisionTotal": 323,
+      "precisionBlocking": 157,
       "precisionSoftened": 166,
       "recallTotal": 53,
       "recallBlocking": 53,
