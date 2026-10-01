@@ -45,6 +45,9 @@ function applyStateOf(rows, unitEnvFile, fs) {
   };
 }
 
+/** A real environment variable name — what the env-file parser can yield is not trusted to be one. */
+const ENV_NAME_RE = /^[A-Z_][A-Z0-9_]*$/;
+
 function stateOf(name, value) {
   if (typeof value !== 'string' || !value.trim()) return 'missing';
   return inspectEnvValue(name, value).ok ? 'set' : 'placeholder';
@@ -77,11 +80,30 @@ async function buildListing(d) {
   const byName = new Map(rows.map((r) => [r.name, r]));
   const entries = catalogue.catalogueEntries();
   for (const r of rows) if (!catalogue.tierOf(r.name)) entries.push({ name: r.name, tier: 'custom', why: '' });
+  // Every name set in the server's app env file is listed too (Craig
+  // 2026-10-01: "gatetest secrets listed on the server"). Before this, a name
+  // that was set on the box but neither catalogued nor stored in the panel
+  // was invisible here. Old names of catalogued entries (VAPRON_* and the
+  // like) are already shown under their canonical row, so they are skipped.
+  // Only the NAME leaves this function; state comes from the value, never
+  // the value itself.
+  const listed = new Set(entries.map((e) => e.name));
+  const aliasNames = new Set(Object.values(catalogue.ALIASES).flat());
+  const serverOnly = [];
+  for (const name of (d.appEnv ? d.appEnv.keys() : [])) {
+    if (listed.has(name) || aliasNames.has(name) || !ENV_NAME_RE.test(name)) continue;
+    listed.add(name);
+    serverOnly.push(name);
+  }
+  for (const name of serverOnly.sort()) {
+    entries.push({ name, tier: 'custom', why: 'set in the server env file — not in the catalogue', fromServerFile: true });
+  }
 
   const items = [];
   for (const e of entries) {
     const row = byName.get(e.name) || null;
     let state = envState(e.name, d.runtimeEnv);
+    if (e.fromServerFile && state === 'missing') state = stateOf(e.name, d.appEnv.get(e.name));
     let error;
     if (row) {
       const sv = status.storeReady ? await storedValue(d.store, e.name) : { error: storeError };
