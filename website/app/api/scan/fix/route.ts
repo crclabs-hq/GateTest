@@ -1338,8 +1338,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (!ANTHROPIC_API_KEY && !byokKey) {
+    // The variable's name is an operator fact: it goes to the server log,
+    // never into the customer's response (security:error-detail-leak).
+    console.warn("[scan/fix] ANTHROPIC_API_KEY is not configured — AI fixing unavailable without BYOK");
     return NextResponse.json(
-      { error: "AI not configured (ANTHROPIC_API_KEY) — supply anthropicApiKey (BYOK) to run on your own key" },
+      { error: "AI fixing is unavailable right now — supply anthropicApiKey (bring your own key) to run on your own key" },
       { status: 503 },
     );
   }
@@ -2351,7 +2354,7 @@ export async function POST(req: NextRequest) {
     if (!baseSha) {
       return NextResponse.json({
         error: "Could not resolve base branch SHA from Gluecron or GitHub",
-        hint: "Confirm the repo is reachable and GLUECRON_API_TOKEN / GITHUB_TOKEN has read access.",
+        hint: "Confirm the repository is reachable and GateTest has read access to it (GitHub App installed, or a PAT with repo scope).",
         defaultBranch,
       }, { status: 500 });
 

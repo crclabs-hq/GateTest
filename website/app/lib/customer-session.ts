@@ -92,11 +92,13 @@ function b64urlDecode(str: string): Buffer {
 // encrypt AND sign for defence in depth.
 
 function deriveKey(secret: string): Buffer {
-  // Derive a 32-byte key from the session secret via SHA-256.
-  // SESSION_SECRET is expected to be a high-entropy string (per the env
-  // hygiene we already enforce). SHA-256 normalises whatever shape the
-  // operator provides into a usable AES-256 key.
-  return crypto.createHash("sha256").update(secret).digest();
+  // SESSION_SECRET also signs the cookie (sign() below), so the encryption
+  // key must not be the same material: HKDF with a purpose label separates
+  // the two. Until 2026-10-02 this was sha256(SESSION_SECRET) — the exact
+  // defect GateTest's security:weak-kdf rule now finds (Tallrig corpus
+  // TALLRIG-2026-017), caught here by our own self-scan. Cookies sealed under
+  // the old key no longer decrypt, so those customers sign in once more.
+  return Buffer.from(crypto.hkdfSync("sha256", secret, "gatetest-customer-session", "aes-256-gcm-payload-v1", 32));
 }
 
 function encryptPayload(plaintext: string, secret: string): string {

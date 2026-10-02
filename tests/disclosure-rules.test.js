@@ -1,0 +1,296 @@
+'use strict';
+
+// Credential-exposure and disclosure rules (src/core/disclosure-rules.js) and
+// error-swallow:destructive-then-forget — built against Tallrig's bug corpus
+// (scored by scripts/cross-test-score.js). Every rule has a control pair: the
+// shape that fires it and the fixed / idiomatic shape that must stay quiet.
+// The fixtures are written here from the defect CLASS — the corpus itself is
+// private and never committed to this public repository.
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const { urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak } = require('../src/core/disclosure-rules');
+const ErrorSwallowModule = require('../src/modules/error-swallow');
+
+const L = (src) => src.split('\n');
+
+describe('url-credential-param', () => {
+  it('fires: a stream handler takes the session token from ?token= and validates it', () => {
+    const src = L([
+      'app.get("/events", async (c) => {',
+      '  const t = c.req.query("token");',
+      '  const userId = await validateSession(t, db);',
+      '  if (!userId) return c.json({ error: "bad" }, 401);',
+      '});',
+    ].join('\n'));
+    assert.equal(urlCredentialParam('a.ts', src).length, 1);
+  });
+  it('fires: the absence is answered 401 "Missing session token" (validator further down)', () => {
+    const src = L(['const q = url.searchParams.get("token");', 'if (!q) return new Response("Missing session token", { status: 401 });'].join('\n'));
+    assert.equal(urlCredentialParam('a.ts', src).length, 1);
+  });
+  it('control: the fixed form REFUSES ?token= with 401', () => {
+    const src = L([
+      'if (c.req.query("token") !== undefined) {',
+      '  return c.json({ error: "Session tokens in the URL are not accepted" }, 401);',
+      '}',
+      'const ticket = c.req.query("ticket");',
+      'const userId = redeemTicket(ticket);',
+    ].join('\n'));
+    assert.equal(urlCredentialParam('a.ts', src).length, 0);
+  });
+  it('control: a single-purpose capability link (unsubscribe/invite) is not a session credential', () => {
+    const src = L(['const t = req.query.token;', 'await unsubscribeByToken(t);', 'res.send("You are unsubscribed");'].join('\n'));
+    assert.equal(urlCredentialParam('a.ts', src).length, 0);
+  });
+  it('fires on the client: a session token written into an EventSource URL', () => {
+    const src = L(['const token = getSessionToken();', 'const url = new URL("/stream", base);', 'url.searchParams.set("token", token);'].join('\n'));
+    assert.equal(urlCredentialParam('a.ts', src).length, 1);
+  });
+  it('control: a non-session value in a token-named param on the client stays quiet', () => {
+    const src = L(['const page = cursor.next;', 'url.searchParams.set("token", page);'].join('\n'));
+    assert.equal(urlCredentialParam('a.ts', src).length, 0);
+  });
+});
+
+describe('error-detail-leak', () => {
+  it('fires: a customer-facing note names the API key variable', () => {
+    const src = L(['return {', '  items: [],', '  note: "Suggestions unavailable — OPENAI_API_KEY not configured.",', '};'].join('\n'));
+    assert.equal(errorDetailLeak('a.ts', src).length, 1);
+  });
+  it('control: the same sentence in a log line, or kept in an operator-only field, stays quiet', () => {
+    const src = L([
+      'const detail = "OPENAI_API_KEY is not configured";',
+      'console.warn(`[search] skipped: ${detail}`);',
+      'return { items: [], note: "Suggestions are unavailable right now.", operatorDetail: detail };',
+    ].join('\n'));
+    assert.equal(errorDetailLeak('a.ts', src).length, 0);
+  });
+  it('control: a CLI, script or admin-only route may name the variable — the reader is the operator', () => {
+    const src = L('return { note: "Set OPENAI_API_KEY to enable suggestions." };');
+    for (const p of ['bin/cli.js', 'scripts/sync.js', 'website/app/api/admin/repos/route.ts']) assert.equal(errorDetailLeak(p, src).length, 0, p);
+    assert.equal(errorDetailLeak('website/app/api/search/route.ts', src).length, 1);
+  });
+  it('fires: config errors name env vars AND a route returns err.message to the client', () => {
+    const src = L([
+      'function authUrl() {',
+      '  if (!id) throw new Error("Set GITLAB_OAUTH_CLIENT_ID and GITLAB_OAUTH_CLIENT_SECRET.");',
+      '}',
+      'app.get("/start", (c) => {',
+      '  try { return c.redirect(authUrl()); } catch (err) {',
+      '    const message = err instanceof Error ? err.message : "error";',
+      '    return c.json({ error: message }, 500);',
+      '  }',
+      '});',
+    ].join('\n'));
+    assert.equal(errorDetailLeak('a.ts', src).length, 1);
+  });
+  it('control: the same file that logs err.message and redirects neutrally stays quiet', () => {
+    const src = L([
+      'function authUrl() {',
+      '  if (!id) throw new Error("Set GITLAB_OAUTH_CLIENT_ID and GITLAB_OAUTH_CLIENT_SECRET.");',
+      '}',
+      'app.get("/start", (c) => {',
+      '  try { return c.redirect(authUrl()); } catch (err) {',
+      '    console.error("[oauth] start failed:", err instanceof Error ? err.message : err);',
+      '    return c.redirect("/login?error=unavailable");',
+      '  }',
+      '});',
+    ].join('\n'));
+    assert.equal(errorDetailLeak('a.ts', src).length, 0);
+  });
+});
+
+describe('weak-kdf', () => {
+  it('fires: an encryption key made by sha256 of an env secret', () => {
+    const src = L(['export function deriveKey(secret) {', '  return createHash("sha256")', '    .update(secret)', '    .digest();', '}'].join('\n'));
+    assert.equal(weakKdf('a.ts', src).length, 1);
+  });
+  it('control: a content hash used as an id (hex digest, no key context) stays quiet', () => {
+    const src = L(['function etag(body) {', '  return createHash("sha256").update(body).digest("hex");', '}'].join('\n'));
+    assert.equal(weakKdf('a.ts', src).length, 0);
+  });
+  it('severity: a secret that also signs (or is the session secret) is an error; a dedicated one is a warning', () => {
+    const shared = L(['function deriveKey(secret) {', '  return createHash("sha256").update(secret).digest();', '}', 'function sign(p, secret) { return createHmac("sha256", secret).update(p).digest(); }'].join('\n'));
+    assert.equal(weakKdf('a.ts', shared)[0].severity, 'error');
+    const session = L(['function currentKey() { return deriveKey(process.env.SESSION_SECRET); }', 'function deriveKey(s) {', '  return createHash("sha256").update(s).digest();', '}'].join('\n'));
+    assert.equal(weakKdf('a.ts', session)[0].severity, 'error');
+    const dedicated = L(['function getEncryptionKey() {', '  const secret = process.env.VAULT_KEY_MATERIAL;', '  return createHash("sha256").update(secret).digest();', '}'].join('\n'));
+    assert.equal(weakKdf('a.ts', dedicated)[0].severity, 'warning');
+  });
+  it('control: HKDF derivation stays quiet', () => {
+    const src = L(['function deriveKey(secret) {', '  return Buffer.from(hkdfSync("sha256", secret, salt, "at-rest-v1", 32));', '}'].join('\n'));
+    assert.equal(weakKdf('a.ts', src).length, 0);
+  });
+});
+
+describe('upstream-error-leak', () => {
+  it('fires: a caught error\'s raw message becomes the TRPCError message', () => {
+    const src = L(['} catch (err) {', '  throw new TRPCError({', '    code: "BAD_GATEWAY",', '    message: err.message,', '    cause: err,', '  });'].join('\n'));
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 1);
+  });
+  it('fires: a classified vendor error\'s message is picked for display', () => {
+    const src = L(['} catch (err) {', '  reason = err instanceof PaymentProviderError ? err.message : "Could not price this.";', '}'].join('\n'));
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 1);
+  });
+  it('control: the role-gated form and the mapped form stay quiet', () => {
+    const src = L([
+      'throw new TRPCError({',
+      '  code: "BAD_GATEWAY",',
+      '  message: isOperator ? err.message : customerMessageFor(err),',
+      '  cause: err,',
+      '});',
+      'reason = customerMessageFor(err);',
+      'console.warn(`[pricing] lookup failed: ${err instanceof PaymentProviderError ? err.message : err}`);',
+    ].join('\n'));
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 0);
+  });
+  it('control: a TRPCError with its own sentence stays quiet', () => {
+    const src = L('throw new TRPCError({ code: "NOT_FOUND", message: "Project not found." });');
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 0);
+  });
+});
+
+describe('error-swallow:destructive-then-forget', () => {
+  async function run(src) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-dtf-'));
+    try {
+      fs.mkdirSync(path.join(root, 'src'));
+      fs.writeFileSync(path.join(root, 'src', 'm.ts'), src);
+      const checks = [];
+      await new ErrorSwallowModule().run(
+        { addCheck: (name, passed, d = {}) => checks.push({ name, passed, ...d }) },
+        { projectRoot: root, getModuleConfig: () => ({}) },
+      );
+      return checks.filter((c) => /destructive-then-forget/.test(c.name));
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  }
+  it('fires: a failed drop is logged, then the tracking row is deleted', async () => {
+    const hits = await run([
+      'export async function removeTenant(row) {',
+      '  try {',
+      '    await dropDatabase(row.dbName);',
+      '  } catch (error) {',
+      '    const msg = error instanceof Error ? error.message : String(error);',
+      '    console.error(`drop failed: ${msg}`);',
+      '  }',
+      '  await db.delete(tenants).where(eq(tenants.id, row.id));',
+      '}',
+    ].join('\n'));
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0].severity, 'error');
+  });
+  it('control: the catch returns, so the row is deleted only on success', async () => {
+    const hits = await run([
+      'export async function removeTenant(row) {',
+      '  try {',
+      '    await dropDatabase(row.dbName);',
+      '  } catch (error) {',
+      '    return fail("drop failed — database still exists", error);',
+      '  }',
+      '  await db.delete(tenants).where(eq(tenants.id, row.id));',
+      '}',
+    ].join('\n'));
+    assert.equal(hits.length, 0);
+  });
+  it('control: a non-destructive call that fails soft before a delete stays quiet', async () => {
+    const hits = await run([
+      'async function close(row) {',
+      '  try {',
+      '    await notifyOwner(row);',
+      '  } catch (error) {',
+      '    console.warn("notify failed", error);',
+      '  }',
+      '  await db.delete(sessions).where(eq(sessions.id, row.id));',
+      '}',
+    ].join('\n'));
+    assert.equal(hits.length, 0);
+  });
+});
+
+describe('cross-test harness (scripts/cross-test-score.js)', () => {
+  const { splitSnippet, grade, score } = require('../scripts/cross-test-score');
+  it('splits a multi-location snippet at its "// ... path:line" separators', () => {
+    const files = splitSnippet('// ... a/x.ts:10\nconst a = 1;\n// ... b/y.ts:3\nconst b = 2;', 'a/x.ts');
+    assert.deepEqual(files.map((f) => f.file), ['a/x.ts', 'b/y.ts']);
+  });
+  it('grades caught only when a class-mapped finding disappears on the fix; survivors are noise', () => {
+    const entry = { class: 'secret-in-url-query', status: 'fixed' };
+    const hit = { module: 'security', ruleId: 'security:url-credential-param', file: 'a.ts' };
+    const generic = { module: 'codeQuality', ruleId: 'quality:x', file: 'a.ts' };
+    assert.equal(grade(entry, [hit], [], ['a.ts']).grade, 'caught');
+    assert.equal(grade(entry, [hit], [hit], ['a.ts']).grade, 'missed', 'a finding that survives the fix is noise');
+    assert.equal(grade(entry, [generic], [], ['a.ts']).grade, 'partial');
+    assert.equal(grade({ ...entry, status: 'open' }, [hit], null, ['a.ts']).grade, 'caught');
+  });
+  it('the score formula is (caught + 0.5 × partial) / scored', () => {
+    const s = score([{ grade: 'caught', severity: 'P1' }, { grade: 'partial', severity: 'P1' }, { grade: 'missed', severity: 'P2' }, { grade: 'missed', severity: 'P2', status: 'withdrawn' }]);
+    assert.equal(s.scored, 3);
+    assert.equal(s.catchRate, 0.5);
+  });
+});
+
+describe('insecure-default-tier', () => {
+  const { insecureDefaultTier } = require('../src/core/disclosure-rules');
+  it('fires: a plan resolver that falls through to "pro"', () => {
+    const src = ['function resolvePlanTier(env = process.env) {', '  const o = env.PLAN_OVERRIDE;', '  if (o === "free" || o === "pro") {', '    return o;', '  }', '  return "pro";', '}'];
+    assert.equal(insecureDefaultTier('a.ts', src).length, 1);
+  });
+  it('control: a paid tier only behind a real check, free as the fall-through, stays quiet', () => {
+    const src = ['function resolvePlanTier(sub) {', '  if (sub && sub.status === "active") {', '    return "pro";', '  }', '  return "free";', '}'];
+    assert.equal(insecureDefaultTier('a.ts', src).length, 0);
+  });
+  it('control: an unrelated function returning "pro" stays quiet', () => {
+    assert.equal(insecureDefaultTier('a.ts', ['function label(x) {', '  return "pro";', '}']).length, 0);
+  });
+});
+
+describe('project-config rules', () => {
+  const { peerMetaDrift, cspEvalConflict } = require('../src/core/project-config-rules');
+  it('peer-meta-drift fires when peerDependenciesMeta names a package peerDependencies lacks', () => {
+    const pkg = JSON.stringify({ name: 'x', peerDependenciesMeta: { 'node-llama-cpp': { optional: true } } }, null, 2);
+    assert.equal(peerMetaDrift('package.json', pkg).length, 1);
+  });
+  it('control: the fixed manifest (listed in both) stays quiet', () => {
+    const pkg = JSON.stringify({ name: 'x', peerDependencies: { 'node-llama-cpp': '*' }, peerDependenciesMeta: { 'node-llama-cpp': { optional: true } } }, null, 2);
+    assert.equal(peerMetaDrift('package.json', pkg).length, 0);
+  });
+  const csp = { relPath: 'src/lib/csp.ts', content: 'const SCRIPT_SRC = "script-src \'self\' \'nonce-X\' \'wasm-unsafe-eval\'";' };
+  it('csp-eval-conflict fires: strict CSP + a SolidStart app.config without serialization', () => {
+    const cfg = { relPath: 'apps/web/app.config.ts', content: 'import { defineConfig } from "@solidjs/start/config";\nexport default defineConfig({\n  server: { preset: "bun" },\n});' };
+    const out = cspEvalConflict([csp, cfg]);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].severity, 'error');
+  });
+  it('control: the fixed config (serialization: json) and a CSP that allows eval both stay quiet', () => {
+    const fixed = { relPath: 'apps/web/app.config.ts', content: 'export default defineConfig({\n  serialization: { mode: "json" },\n  server: {},\n});' };
+    assert.equal(cspEvalConflict([csp, fixed]).length, 0);
+    const lax = { relPath: 'src/lib/csp.ts', content: '"script-src \'self\' \'unsafe-eval\'"' };
+    const cfg = { relPath: 'apps/web/app.config.ts', content: 'export default defineConfig({\n  server: {},\n});' };
+    assert.equal(cspEvalConflict([lax, cfg]).length, 0);
+  });
+});
+
+describe('ambient-credential-fallback', () => {
+  const { ambientCredentialFallback } = require('../src/core/disclosure-rules');
+  it('fires: no user key → the platform token, inside a user-scoped function', () => {
+    const src = ['async function clientFor(db, userId) {', '  const row = await findUserKey(db, userId);', '  if (!row) return new RepoClient(boxGithubToken());', '  return new RepoClient(row.token);', '}'];
+    assert.equal(ambientCredentialFallback('src/api/clients.ts', src).length, 1);
+  });
+  it('fires: userToken ?? process.env.GITHUB_TOKEN for a request user', () => {
+    const src = ['const token = ctx.user.githubToken ?? process.env.GITHUB_TOKEN;'];
+    assert.equal(ambientCredentialFallback('src/api/read.ts', src).length, 1);
+  });
+  it('control: anonymous when the user has none (the fix) stays quiet', () => {
+    const src = ['async function clientFor(db, userId) {', '  const row = await findUserKey(db, userId);', '  if (!row) return new RepoClient(undefined);', '}'];
+    assert.equal(ambientCredentialFallback('src/api/clients.ts', src).length, 0);
+  });
+  it('control: a CLI reading its own GITHUB_TOKEN (no user in scope) stays quiet', () => {
+    assert.equal(ambientCredentialFallback('src/cli/run.js', ['const token = args.token ?? process.env.GITHUB_TOKEN;']).length, 0);
+    assert.equal(ambientCredentialFallback('bin/tool.js', ['const t = ctx.user.token ?? process.env.GITHUB_TOKEN;']).length, 0);
+  });
+});
