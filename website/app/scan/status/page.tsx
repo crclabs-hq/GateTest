@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { notCheckedNotices } from "@/app/lib/scan-not-checked";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import FindingsPanel, { type Finding } from "@/app/components/FindingsPanel";
@@ -40,6 +41,8 @@ interface ScanResult {
   error?: string;
   canRetry?: boolean;
   fixableIssues?: FixableIssue[];
+  /** What the engine actually covered — /api/scan/run `coverage`. */
+  coverage?: { filesAnalysed: number | null; filesInRepo: number | null; truncated: boolean; engine: string | null };
 }
 
 interface BudgetSummary {
@@ -375,6 +378,15 @@ export default function ScanStatus() {
           <p className="mt-2 text-xs text-muted">
             🔒 Your source is held only while the scan runs and never stored; findings stay in your scan history.
           </p>
+          {/* Not checked — a fallback engine or the file cap must never wear "All Clear" unqualified. */}
+          {isComplete && notCheckedNotices(scanResult?.coverage).length > 0 && (
+            <div role="status" className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-left text-sm text-foreground">
+              <p className="font-semibold">Not everything was checked</p>
+              <ul className="mt-1 list-disc pl-5 space-y-1">
+                {notCheckedNotices(scanResult?.coverage).map((line: string) => <li key={line}>{line}</li>)}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Progress — never rendered before the client knows there is a scan */}
