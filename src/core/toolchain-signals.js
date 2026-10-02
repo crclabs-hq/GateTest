@@ -22,9 +22,34 @@ const path = require('path');
 // (ktor's Gradle compile under a toolchain this box does not have).
 const MISSING_TOOLCHAIN_RE = /ModuleNotFoundError|No module named|command not found|is not recognized as an internal|ENOENT|not found: |: not found\b|Cannot find module|npm ERR! missing script|could not determine executable to run|Could not find a version that satisfies|SDK location not found|Could not resolve all (?:files|dependencies)|Unsupported class file major version|Execution failed for task '[^']*:compile|Compilation error\. See log|BUILD FAILURE[\s\S]*COMPILATION ERROR/i;
 
+// A line that reports a test that RAN and passed. Its text is the test's
+// name, not the runner's error: Tallrig's suite has a passing test named
+// "ENOENT open → warn file-not-found", and matching it as a missing toolchain
+// turned a red suite green (audit 2026-10-02). These lines are dropped
+// before MISSING_TOOLCHAIN_RE is asked.
+// Monorepo runners prefix every line with the task (`@scope/pkg:test: `,
+// Turborepo; `pkg | `, pnpm -r), so the markers may follow that prefix.
+const TASK_PREFIX = String.raw`(?:^|^[^\s]+:\s|^\S+ \|\s)\s*`;
+const PASSING_TEST_LINE_RE = new RegExp(String.raw`${TASK_PREFIX}(?:\(pass\)|ok \d+\b|[✓✔√]|PASS\b|--- PASS:|# pass\b)|\bPASSED\b`);
+
+// Proof that at least one test ran and FAILED. Per-test markers only: a
+// suite-level "failed to run" (jest's `Test Suites: 1 failed` with
+// `Tests: 0 total`, or TAP `not ok` for a file that could not load) can
+// still be our environment, so those are not here. A real failure always
+// beats a toolchain-looking line elsewhere in the output.
+const TEST_FAILED_RE = new RegExp(String.raw`${TASK_PREFIX}(?:\(fail\)|--- FAIL:|\d+ failing\b|Tests:\s+[1-9]\d* failed|FAILED \S+::|[✗✕]\s)|test result: FAILED\. \d+ passed; [1-9]`, 'm');
+
+/** @param {string} line one output line */
+function isPassingTestLine(line) {
+  return PASSING_TEST_LINE_RE.test(String(line || ''));
+}
+
 /** @param {string} out combined stdout + stderr */
 function looksLikeMissingToolchain(out) {
-  return MISSING_TOOLCHAIN_RE.test(String(out || ''));
+  const text = String(out || '');
+  if (TEST_FAILED_RE.test(text)) return false;
+  const signal = text.split(/\r?\n/).filter((l) => !isPassingTestLine(l)).join('\n');
+  return MISSING_TOOLCHAIN_RE.test(signal);
 }
 
 /**
@@ -74,4 +99,4 @@ function nodeDepsMissing(projectRoot) {
   return !fs.existsSync(path.join(projectRoot, 'node_modules'));
 }
 
-module.exports = { looksLikeMissingToolchain, nodeDepsMissing, looksLikeToolchainBuildFailure, firstToolchainErrorLine };
+module.exports = { looksLikeMissingToolchain, isPassingTestLine, nodeDepsMissing, looksLikeToolchainBuildFailure, firstToolchainErrorLine };
