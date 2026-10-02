@@ -73,18 +73,20 @@ async function upsertMcpSubscription(sql, opts) {
 
 /**
  * Look up a subscription by API key.
- * Returns { stripeSubscriptionId, status } or null (unknown key).
- * Used by /api/mcp/validate.
+ * Returns { stripeSubscriptionId, status, customerEmail } or null (unknown key).
+ * Used by /api/mcp/validate and the hosted-MCP fix entitlement (mcp-fix-entitlement.js).
  */
 async function findByApiKey(sql, apiKey) {
   if (!sql || typeof sql !== 'function') throw new Error('sql is required');
   if (!apiKey) return null;
   await ensureSchema(sql);
-  const rows = await sql`SELECT stripe_subscription_id, status
+  const rows = await sql`SELECT stripe_subscription_id, status, customer_email
     FROM mcp_subscriptions
     WHERE api_key = ${apiKey}
     LIMIT 1`;
-  return rows && rows[0] ? { stripeSubscriptionId: rows[0].stripe_subscription_id, status: rows[0].status } : null;
+  return rows && rows[0]
+    ? { stripeSubscriptionId: rows[0].stripe_subscription_id, status: rows[0].status, customerEmail: rows[0].customer_email || null }
+    : null;
 }
 
 /** Sync status from Stripe subscription lifecycle webhooks. */
