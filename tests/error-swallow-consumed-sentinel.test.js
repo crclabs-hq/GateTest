@@ -185,4 +185,100 @@ describe('ErrorSwallowModule — consumed-sentinel guard (control pair, issue #7
     assert.strictEqual(hit.severity, 'warning');
     assert.strictEqual(hit.guarded, 'consumed-sentinel');
   });
+
+  // 2026-10-02, Gluecron (src/routes/*.tsx, src/lib/*.ts): consumed
+  // sentinels whose read the guard did not recognise. Each is the real
+  // Gluecron shape; the controls beside them keep the discard-and-continue
+  // cases blocking.
+  const consumed = [
+    ['optional chain', ['  const body = await c.req.formData().catch(() => null);', '  const rawName = (body?.get("branchName"))?.trim();', '  return rawName;']],
+    ['ternary', ['  const refWrite = await newestRefWriteAt(u, r).catch(() => null);', '  const at = Math.max(0, refWrite ? refWrite.getTime() : 0);', '  return at;']],
+    ['right side of ||', ['  const viewerIsAdmin = await isSiteAdmin(id).catch(() => false);', '  const show = config.precisionPublic || viewerIsAdmin;', '  return show;']],
+    ['object shorthand', ['  const defaultBranch = await getDefaultBranch(o, r).catch(() => null);', '  return {', '    url,', '    defaultBranch,', '  };']],
+    ['plain re-assignment then if', ['  let prRisk = null;', '  prRisk = await getCachedPrRisk(id).catch(() => null);', '  if (!prRisk) calc = true;', '  return calc;']],
+    ['property value', ['  return send({', '    defaultBranch: await getDefaultBranch(o, r).catch(() => null),', '  });']],
+    ['multi-line call then if', ['  const headTip = await resolveRef(', '    o,', '    `refs/heads/${r}`', '  ).catch(() => null);', '  if (!headTip) return 0;', '  return headTip;']],
+    ['Promise.all element', ['  const [health, ci] = await Promise.all([', '    computeHealthScore(u, r).catch(() => null),', '    detectCIConfig(u, r),', '  ]);', '  return [health, ci];']],
+    ['continued chain', ['  const aiPaused = await getFlag(FLAG)', '    .then((v) => v === "1")', '    .catch(() => false);', '  return aiPaused || off;']],
+    ['Promise.all element after an element with []', ['  const [a, b, c] = await Promise.all([', '    listBranches(u, r).catch(() => []),', '    detectCIConfig(u, r).catch(() => null),', '    one(),', '  ]);', '  return [a, b, c];']],
+    ['long Promise.all element', ['  const [a, avg] = await Promise.all([', '    one(),', '    db', '      .select({ avg: x })', '      .from(t)', '      .where(and(eq(t.id, id), eq(t.state, "merged")))', '      .orderBy(t.at)', '      .limit(1)', '      .offset(0)', '      .groupBy(t.id)', '      .having(y)', '      .then((r) => r[0]?.avg ?? null)', '      .catch(() => null),', '  ]);', '  return [a, avg];']],
+    ['|| at end of line', ['  const branch =', '    (await getDefaultBranch(o, r).catch(() => null)) ||', '    "main";', '  return branch;']],
+    ['parenthesised if condition', ['  for (const s of list) {', '    if (!(await s.isVisible().catch(() => false))) continue;', '    n += 1;', '  }']],
+  ];
+  for (const [shape, body] of consumed) {
+    it(`Gluecron consumed sentinel — ${shape} — is not blocking`, async () => {
+      write(tmp, 'src/g.ts', ['export async function h(c, u, r, o, id, config, url, list, n, calc) {', ...body, '}'].join('\n'));
+      const hit = noop(await run(tmp));
+      assert.ok(hit, 'still reported');
+      assert.strictEqual(hit.severity, 'warning');
+      assert.strictEqual(hit.guarded, 'consumed-sentinel');
+    });
+  }
+
+  it('control: a sentinel re-assigned and never read still blocks', async () => {
+    write(tmp, 'src/g2.ts', [
+      'export async function h(id) {',
+      '  let risk = null;',
+      '  risk = await getCachedPrRisk(id).catch(() => null);',
+      '  risk = 0;',
+      '  return 1;',
+      '}',
+    ].join('\n'));
+    const hit = noop(await run(tmp));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('control: a property of the same name on another object is not a read', async () => {
+    write(tmp, 'src/g3.ts', [
+      'export async function h(o, id) {',
+      '  const admin = await isSiteAdmin(id).catch(() => false);',
+      '  return o.admin;',
+      '}',
+    ].join('\n'));
+    const hit = noop(await run(tmp));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('control: a sentinel in the BODY of an if, not its condition, still blocks', async () => {
+    write(tmp, 'src/g4.ts', [
+      'export async function h(ready, userId) {',
+      '  if (ready) await resetIfCycleExpired(userId).catch(() => false);',
+      '  return 1;',
+      '}',
+    ].join('\n'));
+    const hit = noop(await run(tmp));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('control: a multi-line sentinel call whose result is never read still blocks', async () => {
+    write(tmp, 'src/g5.ts', [
+      'export async function h(o, r) {',
+      '  const tip = await resolveRef(',
+      '    o,',
+      '    r',
+      '  ).catch(() => null);',
+      '  return 1;',
+      '}',
+    ].join('\n'));
+    const hit = noop(await run(tmp));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
+
+  it('control: a sentinel element of a plain array literal (not Promise.all) still blocks', async () => {
+    write(tmp, 'src/g6.ts', [
+      'export async function h(u) {',
+      '  const jobs = [',
+      '    load(u).catch(() => null),',
+      '  ];',
+      '  return 1;',
+      '}',
+    ].join('\n'));
+    const hit = noop(await run(tmp));
+    assert.ok(hit);
+    assert.strictEqual(hit.severity, 'error');
+  });
 });

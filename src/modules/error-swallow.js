@@ -115,6 +115,7 @@ const { repoRelative } = require('../core/repo-path');
 const BaseModule = require('./base-module');
 const { HARNESS_DIR_RE } = require('../core/scan-scope');
 const { classifyEmptyCatch, enclosingContext, isTeardownName } = require('../core/guarded-catch');
+const { createNeverRejects } = require('../core/never-rejects');
 
 // Directory excludes beyond what `BaseModule._collectFiles` already skips
 // (node_modules, .git, dist, build, coverage, .next, out, …). The old
@@ -223,6 +224,7 @@ class ErrorSwallowModule extends BaseModule {
     });
 
     let issues = 0;
+    this._neverRejects = createNeverRejects();
     for (const file of files) {
       issues += this._scanFile(file, projectRoot, result);
     }
@@ -359,7 +361,7 @@ class ErrorSwallowModule extends BaseModule {
         const sentinelGuard = (!isHarness && returnsSentinel) ? this._consumedSentinelGuard(masked, i, catchNoop) : { guarded: false };
         const guard = isHarness
           ? { guarded: false }
-          : (sentinelGuard.guarded ? sentinelGuard : this._catchNoopGuard(masked, i, catchNoop));
+          : (sentinelGuard.guarded ? sentinelGuard : this._catchNoopGuard(masked, i, catchNoop, file, content));
         issues += this._flag(result, `error-swallow:catch-noop:${rel}:${i + 1}`, this._catchNoopDetails({
           rel,
           line: i + 1,
@@ -374,7 +376,7 @@ class ErrorSwallowModule extends BaseModule {
       // — same void-prefix suppression applies.
       const catchNamedNoop = noopCatchAt(code, line, /\.catch\s*\(\s*(?:noop|ignore|swallow|_)\s*\)/);
       if (catchNamedNoop && !this._isSuppressed(lines, i) && !this._isVoidFireAndForget(masked, i)) {
-        const guard = isHarness ? { guarded: false } : this._catchNoopGuard(masked, i, catchNamedNoop);
+        const guard = isHarness ? { guarded: false } : this._catchNoopGuard(masked, i, catchNamedNoop, file, content);
         issues += this._flag(result, `error-swallow:catch-noop:${rel}:${i + 1}`, this._catchNoopDetails({
           rel,
           line: i + 1,
@@ -539,11 +541,22 @@ class ErrorSwallowModule extends BaseModule {
    *   direct-operand    nothing is assigned; the call is itself the
    *                     condition of an `if (`/`if (!` or the expression of
    *                     a `return` — the value is consumed on the spot.
-   *   assignment        `const/let/var NAME = …catch(...)`, and NAME is read
-   *                     in a condition, a nullish/logical chain, a `return`,
-   *                     or passed as a call argument within the next few
-   *                     lines. `const u = await load().catch(() => null); if
-   *                     (!u) return res.status(404).end();`
+   *   property value    the call is the value of an object property
+   *                     (`defaultBranch: await getDefaultBranch(o, r).catch(()
+   *                     => null),`) — the sentinel travels to whoever reads
+   *                     the object, typed as nullable.
+   *   assignment        `const/let/var NAME = …catch(...)` or a plain
+   *                     `NAME = …catch(...)`, and NAME is READ — any
+   *                     reference that is not itself an assignment target —
+   *                     within the next dozen lines: a condition, `?.`, a
+   *                     ternary, `||`/`??` on either side, a `return`, a call
+   *                     argument, an object shorthand. `const u = await
+   *                     load().catch(() => null); if (!u) return 404;`
+   *                     Measured 2026-10-02 on Gluecron: 16 consumed
+   *                     sentinels blocked because the read was `body?.get()`,
+   *                     `refWrite ? … : 0`, `config.x || viewerIsAdmin`, a
+   *                     `{ defaultBranch }` shorthand, or a plain
+   *                     `prRisk = await …; if (!prRisk)` re-assignment.
    *
    * A sentinel assigned but never read again (`const r = await
    * fetch().catch(() => null); res.json({ ok: true });`) matches none of
@@ -556,46 +569,96 @@ class ErrorSwallowModule extends BaseModule {
 
     // same-statement: `) ?? DEFAULT` / `) || fallback` right after the call
     // closes (any wrapping parens from `(await x.catch(...))` close first).
-    if (/^\s*\)*\s*(?:\?\?|\|\|)\s*\S/.test(rest)) {
+    if (/^\s*\)*\s*(?:\?\?|\|\|)\s*(?:\S|$)/.test(rest)) {
       return { guarded: true, shape: 'consumed-sentinel', context: 'the following `??`/`||`' };
     }
 
     // direct-operand: nothing assigned — the call itself is the `if (`
     // condition or the `return` expression.
-    const directOperand = /^\s*(?:if\s*\(\s*!?\s*|return\s+)(?:await\s+)?$/.test(before);
-    if (directOperand) {
-      const restTrim = rest.replace(/^\)*/, '');
-      if (/^\s*(?:\)\s*\{|;|\?\?|\|\||$)/.test(restTrim)) {
-        const isIf = /^\s*if\b/.test(before);
-        return { guarded: true, shape: 'consumed-sentinel', context: isIf ? 'the `if` condition' : 'the `return` expression' };
+    // direct-operand. `before` holds the whole callee (`if (!(await
+    // s.isVisible()`), so an `if` whose paren is still open at the catch has
+    // the call inside its condition — `if (!(await x.catch(() => false)))
+    // continue;` included.
+    const depth = (before.match(/\(/g) || []).length - (before.match(/\)/g) || []).length;
+    if (/^\s*(?:\}\s*else\s+)?if\s*\(/.test(before) && depth >= 1) {
+      return { guarded: true, shape: 'consumed-sentinel', context: 'the `if` condition' };
+    }
+    if (/^\s*return\s/.test(before) && /^\)*\s*(?:;|\?\?|\|\||$)/.test(rest)) {
+      return { guarded: true, shape: 'consumed-sentinel', context: 'the `return` expression' };
+    }
+
+    // property value: `key: await f().catch(() => null),` on its own line of
+    // an object literal (`before` opens with the key).
+    const prop = before.match(/^\s*([A-Za-z_$][\w$]*)\s*:\s*(?:await\s+)?[A-Za-z_$(]/);
+    if (prop && /^\)*\s*(?:[,}]|$)/.test(rest)) {
+      return { guarded: true, shape: 'consumed-sentinel', context: `the \`${prop[1]}\` property` };
+    }
+
+    // Promise.all element: `const [a, b] = await Promise.all([ f(),
+    // g().catch(() => null), ]);` — the sentinel lands in a destructured
+    // slot the caller reads, exactly like an assignment.
+    // The array is found by bracket balance, not distance: an element can be
+    // a 10-line query chain (Gluecron health-score.ts).
+    if (/^\)*\s*,?\s*$/.test(rest)) {
+      const opener = this._enclosingArrayOpen(masked, lineIdx, before);
+      if (opener && /\bPromise\.(?:all|allSettled)\s*\(\s*$/.test(opener.head)) {
+        return { guarded: true, shape: 'consumed-sentinel', context: 'a `Promise.all` result', consumerLine: opener.line + 1 };
       }
     }
 
-    // assignment: `const/let/var NAME = …` — scan the rest of this
-    // statement plus the next few lines for a read of NAME, so the finding
-    // can cite the exact consumer line.
-    const asg = before.match(/^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/);
+    // A call that spans lines (`const x = await f(\n a,\n b\n).catch(...)`)
+    // keeps its assignment on the line where the call's parens open; walk
+    // back to it so the assignment shape below sees the statement head.
+    // A chain continued on its own line (`await getFlag(F)\n  .then(…)\n
+    // .catch(() => false);`) belongs to the statement above it the same way.
+    const balance = (t) => (t.match(/\)/g) || []).length - (t.match(/\(/g) || []).length;
+    let head = before;
+    let probe = mline;
+    let open = balance(before);
+    for (let k = lineIdx - 1; k >= Math.max(0, lineIdx - 12); k -= 1) {
+      if (open <= 0 && !/^\s*[.)]/.test(probe)) break;
+      const prev = masked[k] || '';
+      open += balance(prev);
+      head = prev;
+      probe = prev;
+    }
+
+    // assignment: `const/let/var NAME = …` or `NAME = …` — scan the rest of
+    // this statement plus the next dozen lines for a read of NAME, so the
+    // finding can cite the exact consumer line. A read is any reference that
+    // is not a property of something else (`obj.NAME`) and not itself the
+    // target of a new assignment (`NAME = other`).
+    const asg = head.match(/^\s*(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\s*=(?![=>])/);
     if (asg) {
       const name = asg[1];
-      const n = `(?<![\\w$.])${name}(?![\\w$])`;
-      const condRe = new RegExp(`\\bif\\s*\\(\\s*!?\\s*${n}\\b`);
-      const nullishRe = new RegExp(`${n}\\s*(?:\\?\\.)?\\s*(?:\\?\\?|\\|\\|)`);
-      const returnRe = new RegExp(`\\breturn\\b[^;]*\\b${name}\\b`);
-      const argRe = new RegExp(`\\([^()]*\\b${name}\\b[^()]*\\)`);
-      const destructureDefaultRe = new RegExp(`=\\s*${n}\\s*[,}\\)]`);
-      const consumes = (text) => condRe.test(text) || nullishRe.test(text) || returnRe.test(text)
-        || argRe.test(text) || destructureDefaultRe.test(text);
-      if (consumes(rest)) {
+      const readRe = new RegExp(`(?<![\\w$.])${name}(?![\\w$])(?!\\s*=(?![=>]))`);
+      if (readRe.test(rest)) {
         return { guarded: true, shape: 'consumed-sentinel', context: name, consumerLine: lineIdx + 1 };
       }
-      for (let k = lineIdx + 1; k < Math.min(masked.length, lineIdx + 7); k += 1) {
-        if (consumes(masked[k] || '')) {
+      for (let k = lineIdx + 1; k < Math.min(masked.length, lineIdx + 13); k += 1) {
+        if (readRe.test(masked[k] || '')) {
           return { guarded: true, shape: 'consumed-sentinel', context: name, consumerLine: k + 1 };
         }
       }
     }
 
     return { guarded: false };
+  }
+
+  /** The `[` enclosing the text before the catch (up to 60 lines back): its line and the text before it, or null. */
+  _enclosingArrayOpen(masked, lineIdx, before) {
+    let depth = 0;
+    for (let k = lineIdx; k >= Math.max(0, lineIdx - 60); k -= 1) {
+      const text = k === lineIdx ? before : (masked[k] || '');
+      for (let j = text.length - 1; j >= 0; j -= 1) {
+        if (text[j] === ']') depth += 1;
+        else if (text[j] === '[') {
+          if (depth === 0) return { line: k, head: text.slice(0, j) };
+          depth -= 1;
+        }
+      }
+    }
+    return null;
   }
 
   /**
@@ -626,7 +689,7 @@ class ErrorSwallowModule extends BaseModule {
    * is NOT a stored reference — nothing awaits it — and keeps blocking; so does
    * `db.commit().catch(() => {})` anywhere but a `finally` or a teardown.
    */
-  _catchNoopGuard(masked, lineIdx, match) {
+  _catchNoopGuard(masked, lineIdx, match, file, content) {
     const mline = masked[lineIdx] || '';
     const before = mline.slice(0, match.index);
     const rest = mline.slice(match.index + match[0].length);
@@ -657,11 +720,27 @@ class ErrorSwallowModule extends BaseModule {
       const observed = new RegExp(`\\b(?:await|return|yield)\\s+${n}|${n}\\s*!?\\s*\\??\\.then\\s*\\(`).test(elsewhere);
       if (observed) return { guarded: true, shape: 'stored-reference', context: name };
     }
+
+    // callee-never-rejects: `audit({ … }).catch(() => {})` where `audit` is
+    // an async function whose whole body is a non-rethrowing try/catch
+    // (src/core/never-rejects.js). The call may span lines, so the callee is
+    // read from the statement up to the `.catch`.
+    if (file && this._neverRejects) {
+      const upTo = [...masked.slice(Math.max(0, lineIdx - 40), lineIdx), before].join('\n');
+      const called = this._calleeBefore(upTo, true);
+      if (called && this._neverRejects(file, content, called)) {
+        return { guarded: true, shape: 'callee-never-rejects', context: called };
+      }
+    }
     return { guarded: false };
   }
 
-  /** `await this.client.end()` → `end`; `ownedDispose?.()` → `ownedDispose`; a bare reference → null. */
-  _calleeBefore(before) {
+  /**
+   * `await this.client.end()` → `end`; `ownedDispose?.()` → `ownedDispose`; a
+   * bare reference → null. With `bareOnly`, a method call (`x.audit()`) → null:
+   * only a plain function name can be resolved to its definition.
+   */
+  _calleeBefore(before, bareOnly = false) {
     const t = before.trimEnd();
     if (!t.endsWith(')')) return null;
     let depth = 0;
@@ -671,8 +750,11 @@ class ErrorSwallowModule extends BaseModule {
       else if (t[p] === '(') { depth -= 1; if (depth === 0) break; }
     }
     if (p <= 0) return null;
-    const m = t.slice(0, p).match(/([A-Za-z_$][\w$]*)\s*(?:\?\.)?\s*$/);
-    return m ? m[1] : null;
+    const head = t.slice(0, p);
+    const m = head.match(/([A-Za-z_$][\w$]*)\s*(?:\?\.)?\s*$/);
+    if (!m) return null;
+    if (bareOnly && /\.\s*$/.test(head.slice(0, m.index))) return null;
+    return m[1];
   }
 
   _catchNoopDetails({ rel, line, isHarness, guard, commentOnly, what, suggestion }) {
@@ -681,6 +763,7 @@ class ErrorSwallowModule extends BaseModule {
       const why = {
         'stored-reference': `the promise is held in \`${guard.context}\`, which this file awaits or returns elsewhere — the noop handler only marks the rejection as observed`,
         rethrow: 'the next statement is a `throw`, so the function is already failing with its primary cause',
+        'callee-never-rejects': `\`${guard.context}()\` catches its own errors and cannot reject, so this handler never runs — it is redundant, not a swallow`,
         cleanup: `this is teardown (${guard.context}) — the resource is being discarded and a failure to discard it has no consumer`,
         'consumed-sentinel': guard.consumerLine
           ? `the returned sentinel is read at line ${guard.consumerLine} (\`${guard.context}\`) — the checked-return idiom, not a swallow`
