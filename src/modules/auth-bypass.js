@@ -61,6 +61,12 @@ const AUTH_READS = [
   // Absent from the original list, which is why five admin routes on this
   // repo that return 401 on a bad cookie were reported "unprotected".
   'status:\\s*40[13]\\b', "['\"]Unauthorized['\"]", "['\"]Forbidden['\"]",
+  // Hono / Fetch-style status argument: `return c.json({ error }, 401)`,
+  // `c.text("…", 403)`. Gluecron's live-PR routes (2026-10-02) run `softAuth`
+  // (populates, never denies) and then `if (!c.get("user")) return c.json(
+  // {…}, 401)` — enforced inline, and reported "unprotected" because only the
+  // Express `status: 401` / `res.status(401)` spellings were known.
+  '\\.(?:json|text|body|html|newResponse)\\([^;]*,\\s*40[13]\\s*\\)',
   'cookies\\(\\)', 'cookieStore', '_COOKIE_NAME', 'SESSION_COOKIE',
   'getAdminUser', 'x-admin-token', 'timingSafeEqual', 'safeEqual\\(',
   'authenticateApiKey', 'apiKey', 'API_KEY', 'CRON_SECRET', 'SIGNING_SECRET',
