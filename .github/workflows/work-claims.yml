@@ -1,0 +1,41 @@
+name: Work claims
+
+# Backstop for the medic / session work-claim rule (docs/ops/WORK-CLAIMS.md).
+# Leases on Gluecron are the agreement; this check still holds if an actor
+# forgets to take one. A medic PR (branch medic/…) that changes a file an
+# open session PR also changes fails — the medic yields. Any other overlap
+# passes with a warning naming the other PR. An unreadable API is reported
+# as "not checked" and passes: the backstop never blocks on a GitHub blip.
+#
+# GITHUB_TOKEN only, read-only.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: work-claims-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  overlap:
+    name: work claims — no medic/session overlap
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare this PR's files with every other open PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          node scripts/pr-overlap-check.js

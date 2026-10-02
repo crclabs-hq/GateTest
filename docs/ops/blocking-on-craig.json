@@ -1,5 +1,5 @@
 {
-          "updated": "2026-09-23",
+          "updated": "2026-10-02",
           "items": [
                     {
                               "id": "npm-trusted-publisher-mcp",
@@ -225,6 +225,16 @@
                               "step": "Edit the \"Reverse proxy\" bullet in CLAUDE.md to name the coolify-proxy container (Traefik v3.6, file provider, /data/coolify/proxy/dynamic/gatetest-web.yaml) as the front today, and keep the Tallrig gateway as the intended end state if that is still the plan.",
                               "where": "CLAUDE.md in the repo (owner commit)",
                               "priority": 3,
+                              "done": false
+                    },
+                    {
+                              "id": "work-claims-agent-sessions",
+                              "title": "Create the two Gluecron agent sessions the medic and Claude sessions take work leases with",
+                              "since": "2026-10-02",
+                              "unblocks": "scripts/work-claims.js answers not_checked until these exist, so the medic and Claude sessions cannot claim files or red main; only the CI overlap backstop (work-claims.yml) protects against duplicate work.",
+                              "step": "With a Gluecron token that has admin scope, call gluecron_create_agent_session twice: name `medic`, then name `claude-sessions`. Keep each session id. Set WORK_CLAIM_AGENT_SESSION=<medic id> plus a repo-scope GLUECRON_API_TOKEN in the medic's env on the jarvis box, and WORK_CLAIM_AGENT_SESSION=<claude-sessions id> plus GLUECRON_API_TOKEN in the Claude cloud environment's env vars. Then have jarvis-platform use medic/ branches and call work-claims acquire before each fix. Protocol: docs/ops/WORK-CLAIMS.md.",
+                              "where": "gluecron.com (admin token) · jarvis box env file · claude.ai/code environment settings",
+                              "priority": 2,
                               "done": false
                     }
           ]
