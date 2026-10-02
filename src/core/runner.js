@@ -211,6 +211,10 @@ class TestResult {
     // match does the opposite of a suppression — it blocks, with the
     // override named in the message (`check.expiredOverride`).
     this._acceptRiskMatcher = options.acceptRiskMatcher || null;
+    // `.gatetest.json` modules.<name>.severity — the owner's call on how hard
+    // this module's findings land (error | warning | info). Until 2026-10-02
+    // it was documented but never read: Tallrig set it and nothing changed.
+    this._severityOverride = ['error', 'warning', 'info'].includes(options.severityOverride) ? options.severityOverride : null;
     this._projectRoot = options.projectRoot || null;
     // Per-module confidence penalty (0..1) learned from the flywheel: a module
     // that fires constantly AND gets dismissed repeatedly has its findings
@@ -243,6 +247,10 @@ class TestResult {
    */
   addCheck(name, passed, details = {}) {
     let severity = details.severity || (passed ? Severity.INFO : Severity.ERROR);
+    // Only a failing error/warning is re-levelled; an info note stays a note.
+    if (!passed && this._severityOverride && (severity === Severity.ERROR || severity === Severity.WARNING)) {
+      severity = this._severityOverride;
+    }
 
     // Field-measured demotion (the Fifty, move 08): applied here — the one
     // place every module's severity is finalised — so no individual module
@@ -958,6 +966,9 @@ class GateTestRunner extends EventEmitter {
       projectRoot: this._projectRoot,
       confidencePenalties: this._confidencePenalties,
       modelVerdictsBlock: this._modelVerdictsBlock,
+      severityOverride: this.config && typeof this.config.getModuleConfig === 'function'
+        ? (this.config.getModuleConfig(name) || {}).severity
+        : null,
     });
 
     if (!mod) {
