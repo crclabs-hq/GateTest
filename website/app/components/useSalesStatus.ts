@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
  * server and answers with the same message. This hook only lets a page SAY
  * "not on sale yet" up front instead of offering a button that would refuse.
  */
-export interface SalesStatus {
+interface SalesStatus {
   paused: boolean;
   message?: string;
 }
@@ -24,7 +24,9 @@ export function useSalesStatus(): SalesStatus | null {
       .then((s: SalesStatus | null) => {
         if (!cancelled && s && typeof s.paused === "boolean") setStatus(s);
       })
-      .catch(() => { /* unknown: the server still refuses while paused */ });
+      // Unreadable status stays "unknown" (null): the page keeps its normal
+      // button and POST /api/checkout still refuses while sales are paused.
+      .catch(() => { if (!cancelled) setStatus(null); });
     return () => { cancelled = true; };
   }, []);
   return status;
