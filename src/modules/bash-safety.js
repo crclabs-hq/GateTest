@@ -87,6 +87,26 @@ const GATE_COMMAND_RE = /\b(?:npm|yarn|pnpm)\s+(?:run\s+)?(?:test|build)\b|\b(?:
 const METADATA_ONLY_CMDS = new Set(['chmod', 'chown', 'chgrp', 'touch']);
 
 /**
+ * An HTTP call whose response nothing reads: `curl -fsS "$PING_URL" >/dev/null
+ * 2>&1 || true`. Gluecron's heartbeat workflow and auto-update.sh carry it on
+ * health-check pings and deploy-event POSTs (2026-10-02: 9 of 69 blocking
+ * bashSafety findings). Whether the ping lands or not, the script reads
+ * nothing from it and goes on identically — a warning, never a blocked
+ * build. Only when the body is discarded (`>/dev/null`, `-o /dev/null`) and
+ * NOT piped on (`curl … | sh`) or saved to a file the script later reads
+ * (`-o file`): those keep blocking. The command is read whole, across `\`
+ * continuations, because the URL line is often not the one with `|| true`.
+ */
+const NOTIFY_CMD_RE = /^\s*(?:docker\s+exec\s+(?:-\S+\s+)*[\w.-]+\s+)?(?:curl|wget)\b/;
+function discardedHttpCall(command) {
+  if (!NOTIFY_CMD_RE.test(command)) return false;
+  if (/\|(?!\|)/.test(command.replace(/\|\|\s*true\b.*$/, ''))) return false;
+  const discards = /(?:^|\s)(?:>|1>)\s*\/dev\/null\b|\s(?:-o|--output|-O)\s+\/dev\/null\b|\s-q\s+-O-?\s*\/dev\/null/.test(command);
+  const savesFile = /\s(?:-o|--output|-O|--output-document)\s+(?!\/dev\/null\b)\S/.test(command);
+  return discards && !savesFile;
+}
+
+/**
  * `^name() {` / `^function name {` — a function defined in THIS script.
  * `_selfReportingFunction` reads its body to decide whether `name … ||
  * true` is a swallow or the author keeping `set -e` from aborting a check
@@ -274,8 +294,10 @@ class BashSafetyModule extends BaseModule {
         const guardedHead = rule.swallowGuard && !inspected && !tested && !bestEffort
           ? guardedCommandHead(codeLine) : null;
         const metadataOnly = guardedHead !== null && METADATA_ONLY_CMDS.has(guardedHead);
-        const selfReporting = guardedHead !== null && !metadataOnly && this._selfReportingFunction(lines, guardedHead);
-        const downgraded = inspected || tested || bestEffort || metadataOnly || selfReporting;
+        const notifyOnly = rule.swallowGuard && !inspected && !tested && !bestEffort && !metadataOnly
+          && discardedHttpCall(this._continuedCommand(lines, idx));
+        const selfReporting = guardedHead !== null && !metadataOnly && !notifyOnly && this._selfReportingFunction(lines, guardedHead);
+        const downgraded = inspected || tested || bestEffort || metadataOnly || notifyOnly || selfReporting;
         result.addCheck(`bash-safety:${rule.code}:${rel}:${lineNum}`, false, {
           severity: downgraded ? 'warning' : rule.severity,
           file: rel,
@@ -285,11 +307,20 @@ class BashSafetyModule extends BaseModule {
             + (tested ? ' — the outcome is tested on the next line; make sure that test covers the failure, not only the happy path' : '')
             + (bestEffort ? ' — step name/id marks this as best-effort CI plumbing (upload/artifact/cache/coverage/notify/report/...); it does not gate the build' : '')
             + (metadataOnly ? ` — ${guardedHead} only changes file metadata; a failure leaves the script's data and control flow unchanged, so this is best-effort, not a swallowed error` : '')
+            + (notifyOnly ? ' — an HTTP call whose response is discarded (a ping or event post); the script reads nothing from it, so a failure changes nothing that follows' : '')
             + (selfReporting ? ` — ${guardedHead} is defined in this file and prints its own verdict before returning non-zero; the "|| true" keeps set -e from aborting the remaining checks` : ''),
           fix: `${rel}:${lineNum} — ${rule.message(rawLine)}\nFix: handle the error explicitly or add "# gatetest:swallow-ok reason=\\"<reason>\\"" if intentional.`,
         });
       }
     });
+  }
+
+  /** The command ending at `idx`, joined back across `\` line continuations, literals stripped. */
+  _continuedCommand(lines, idx) {
+    let start = idx;
+    while (start > 0 && /\\\s*$/.test(lines[start - 1]) && idx - start < 12) start -= 1;
+    return lines.slice(start, idx + 1).map((l) => stripShellLiterals(l).replace(/\\\s*$/, ' ')).join(' ')
+      .replace(/^\s*(?:-\s+)?(?:run:\s*\|?\s*)?/, '');
   }
 
   _scanPackageJson(file, result) {

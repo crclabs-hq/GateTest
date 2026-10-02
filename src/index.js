@@ -100,7 +100,16 @@ class GateTest {
     // suite as if it were exhaustive. Forbidden #16 — never silently fail.
     // `suite` also feeds the root-cause replay command (move 12) — the exact
     // local command that reproduces this run.
-    return this._run(modules, { deferred: this.config.getSuiteDeferrals(suiteName), suite: suiteName });
+    // `.gatetest.json` modules.<name>.enabled: false — the owner turned the
+    // module off. It is not run, and it is reported as not checked (with the
+    // reason) rather than silently missing. An explicit --module still runs it.
+    const disabled = modules.filter((m) => (this.config.getModuleConfig(m) || {}).enabled === false);
+    if (disabled.length > 0) modules = modules.filter((m) => !disabled.includes(m));
+    const deferred = [
+      ...this.config.getSuiteDeferrals(suiteName),
+      ...disabled.map((m) => ({ module: m, reason: `disabled in .gatetest.json (modules.${m}.enabled: false)`, runsIn: 'nowhere until re-enabled' })),
+    ];
+    return this._run(modules, { deferred, suite: suiteName });
   }
 
   /**
