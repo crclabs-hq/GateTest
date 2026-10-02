@@ -186,10 +186,42 @@ function weakKdf(relPath, lines) {
   return out;
 }
 
+// A third-party client's raw error text handed to the customer (CWE-209):
+// vendor names, configuration, internal ids ride along. Tallrig shipped it
+// with its registrar client (TALLRIG-2026-030): a TRPCError whose message is
+// the caught error's message, and a classified error picked for display
+// (`err instanceof RegistrarError ? err.message : …`). A role check on the
+// same line (`isOperator ? err.message : customerMessage(err)`) is the fix.
+const TRPC_MESSAGE_RE = /\bmessage\s*:\s*([\w$]+)\.message\b/;
+const CLASSIFIED_PICK_RE = /=\s*([\w$]+)\s+instanceof\s+([A-Z]\w*Error)\s*\?\s*\1\.message\b/;
+const ROLE_GATE_RE = /\b(?:is|can)(?:Operator|Admin|Staff|Internal)\b\s*\?/;
+
+function upstreamErrorLeak(relPath, lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (isComment(line) || LOG_LINE_RE.test(line) || ROLE_GATE_RE.test(line)) continue;
+    const inTrpcError = /new\s+TRPCError\s*\(/.test(lines.slice(Math.max(0, i - 4), i + 1).join('\n'));
+    const trpc = inTrpcError && TRPC_MESSAGE_RE.exec(line);
+    const pick = CLASSIFIED_PICK_RE.exec(line);
+    if (!trpc && !pick) continue;
+    out.push({
+      rule: 'upstream-error-leak',
+      line: i + 1,
+      severity: 'warning',
+      message: pick
+        ? `${relPath}:${i + 1} a ${pick[2]}'s raw message is chosen for display — upstream wording, vendor names and configuration reach the customer`
+        : `${relPath}:${i + 1} the caught error's raw message becomes the client-facing TRPCError message`,
+      suggestion: 'Map the error to a customer sentence (customerMessageFor(err)); keep err.message for the server log or an operator-only field, and pass the original as `cause`.',
+    });
+  }
+  return out;
+}
+
 /** All disclosure rules for one file. */
 function scanDisclosure(relPath, content) {
   const lines = String(content).split(/\r?\n/);
-  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines)];
+  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines), ...upstreamErrorLeak(relPath, lines)];
 }
 
-module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf };
+module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak };

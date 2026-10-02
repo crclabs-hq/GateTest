@@ -13,7 +13,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { urlCredentialParam, errorDetailLeak, weakKdf } = require('../src/core/disclosure-rules');
+const { urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak } = require('../src/core/disclosure-rules');
 const ErrorSwallowModule = require('../src/modules/error-swallow');
 
 const L = (src) => src.split('\n');
@@ -125,6 +125,33 @@ describe('weak-kdf', () => {
   it('control: HKDF derivation stays quiet', () => {
     const src = L(['function deriveKey(secret) {', '  return Buffer.from(hkdfSync("sha256", secret, salt, "at-rest-v1", 32));', '}'].join('\n'));
     assert.equal(weakKdf('a.ts', src).length, 0);
+  });
+});
+
+describe('upstream-error-leak', () => {
+  it('fires: a caught error\'s raw message becomes the TRPCError message', () => {
+    const src = L(['} catch (err) {', '  throw new TRPCError({', '    code: "BAD_GATEWAY",', '    message: err.message,', '    cause: err,', '  });'].join('\n'));
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 1);
+  });
+  it('fires: a classified vendor error\'s message is picked for display', () => {
+    const src = L(['} catch (err) {', '  reason = err instanceof PaymentProviderError ? err.message : "Could not price this.";', '}'].join('\n'));
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 1);
+  });
+  it('control: the role-gated form and the mapped form stay quiet', () => {
+    const src = L([
+      'throw new TRPCError({',
+      '  code: "BAD_GATEWAY",',
+      '  message: isOperator ? err.message : customerMessageFor(err),',
+      '  cause: err,',
+      '});',
+      'reason = customerMessageFor(err);',
+      'console.warn(`[pricing] lookup failed: ${err instanceof PaymentProviderError ? err.message : err}`);',
+    ].join('\n'));
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 0);
+  });
+  it('control: a TRPCError with its own sentence stays quiet', () => {
+    const src = L('throw new TRPCError({ code: "NOT_FOUND", message: "Project not found." });');
+    assert.equal(upstreamErrorLeak('a.ts', src).length, 0);
   });
 });
 

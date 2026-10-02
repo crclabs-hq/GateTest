@@ -57,6 +57,7 @@ const CLASS_RULES = {
   'env-name-leak-in-error': ['error-detail-leak', 'errorDetailLeak'],
   'csp-eval-dependency': ['csp-eval', 'cspEval'],
   'weak-kdf-shared-secret': ['weak-kdf', 'weakKdf'],
+  'vendor-text-leak': ['upstream-error-leak'],
 };
 
 const SEP_RE = /^\s*(?:\/\/|--|#)\s*\.\.\.\s*([^\s:]+\.[\w]+):(\d+)\s*$/;

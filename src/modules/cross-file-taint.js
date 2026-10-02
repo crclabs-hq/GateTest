@@ -133,6 +133,11 @@ const TAINT_SOURCE_RES = [
   /\bcontext\.request\.body\b/,
 ];
 
+// Route parameters, and every other request source (for paramOnly).
+const ROUTE_PARAM_SOURCE_RE = /\breq(?:uest)?\.params\b|\bctx\.request\.params\b|\bc\.req\.param\b/;
+const NON_PARAM_SOURCE_RE = /\breq(?:uest)?\.(?:body|query|headers)\b|\bctx\.request\.(?:body|query)\b|\bc\.req\.(?:body|query)\b|\b(?:event|evt|e)\.body\b|\bcontext\.request\.body\b/;
+const SAFE_REDIRECT_CALL_RE = /\bsafe(?:Redirect|ReturnTo|Next|Url|Path)\w*\s*\(/;
+
 // Variable assignment from taint source: const x = req.body.x
 const TAINT_ASSIGN_RE = /(?:const|let|var)\s+(\w+)\s*=\s*(.*)/;
 // Destructure from taint: const { x, y } = req.body
@@ -202,6 +207,11 @@ const SANITISE_RES = [
   // timingSafeEqual) and the common verify*/check* naming a hand-rolled
   // signature check uses.
   /\bcreateHmac\s*\(|\btimingSafeEqual\s*\(|\bcreateHash\s*\(|verifySignature|verifyHmac|checkSignature/i,
+  // A same-origin redirect helper — `safeRedirect(c.req.query("redirect"), "")`
+  // (gluecron-src auth.tsx, 2026-10-02), `isSafeRedirect`, `isSameOrigin`,
+  // `isRelativeUrl`. The name states the contract; the helper's own body is
+  // its tests' business, not this sink's.
+  /\bsafe(?:Redirect|ReturnTo|Next|Url|Path)\w*\s*\(|\bisSafe(?:Redirect|Url)\w*\s*\(|\bisSameOrigin\w*\s*\(|\bisRelativeUrl\s*\(/,
 ];
 
 // GT-03 (#771): a redirect whose HOST is a literal — `res.redirect(
@@ -336,6 +346,7 @@ class CrossFileTaintModule extends BaseModule {
         // parameterise every interpolation; raw-with-concat shapes are
         // still caught by the tagged-template sanitiser (handled above).
         let severity = isTest ? 'warning' : 'error';
+        if (hit.sink === 'redirect' && hit.paramOnly) severity = isTest ? 'info' : 'warning';
         if (hit.sink === 'sql-query' && data.hasParameterisedOrm) {
           severity = isTest ? 'info' : 'warning';
         }
@@ -539,6 +550,22 @@ class CrossFileTaintModule extends BaseModule {
 
     // Track tainted vars (grows as we parse)
     const tainted = new Set();
+    // Tainted only through ROUTE PARAMETERS (`/:owner`) — the router hands
+    // them over one path segment at a time, so a redirect that starts `/`
+    // with one in a path segment can be a protocol-relative open redirect
+    // only through a backslash (`/\\evil.example`): real but low, so a
+    // warning (gluecron-src 2026-10-02: ~180 of these were blocking).
+    const paramOnly = new Set();
+    // Assigned straight from a same-origin redirect helper
+    // (`const redirect = safeRedirect(c.req.query("redirect"), "/")`).
+    const redirectSafe = new Set();
+    const markTainted = (name, line) => {
+      tainted.add(name);
+      if (ROUTE_PARAM_SOURCE_RE.test(line) && !NON_PARAM_SOURCE_RE.test(line)) paramOnly.add(name);
+      else paramOnly.delete(name);
+      if (SAFE_REDIRECT_CALL_RE.test(line)) redirectSafe.add(name);
+      else redirectSafe.delete(name);
+    };
 
     for (let i = 0; i < lines.length; i++) {
       const raw = lines[i];
@@ -643,13 +670,13 @@ class CrossFileTaintModule extends BaseModule {
         if (destruct) {
           for (const part of destruct[1].split(',')) {
             const t = part.trim().split(':')[0].trim(); // handle { id: userId }
-            if (t && /^\w+$/.test(t)) tainted.add(t);
+            if (t && /^\w+$/.test(t)) markTainted(t, sinkSafeLine);
           }
         }
         // Direct assignment: const userId = req.params.id
         const assign = TAINT_ASSIGN_RE.exec(sinkSafeLine);
         if (assign && isTaintSource) {
-          if (/^\w+$/.test(assign[1])) tainted.add(assign[1]);
+          if (/^\w+$/.test(assign[1])) markTainted(assign[1], sinkSafeLine);
         }
         // Parameter receives req directly: function foo(req, res) — we
         // mark the function param if we see req.body inside the function
@@ -660,11 +687,13 @@ class CrossFileTaintModule extends BaseModule {
       const assignProp = TAINT_ASSIGN_RE.exec(sinkSafeLine);
       if (assignProp && !isTaintSource) {
         const rhs = assignProp[2] || '';
-        for (const v of tainted) {
-          if (this._lineReferencesVar(rhs, v)) {
-            if (/^\w+$/.test(assignProp[1])) tainted.add(assignProp[1]);
-            break;
-          }
+        const carried = Array.from(tainted).filter((v) => this._lineReferencesVar(rhs, v));
+        if (carried.length > 0 && /^\w+$/.test(assignProp[1])) {
+          const name = assignProp[1];
+          tainted.add(name);
+          if (carried.every((v) => paramOnly.has(v))) paramOnly.add(name); else paramOnly.delete(name);
+          if (SAFE_REDIRECT_CALL_RE.test(rhs) || carried.every((v) => redirectSafe.has(v))) redirectSafe.add(name);
+          else redirectSafe.delete(name);
         }
       }
 
@@ -697,9 +726,13 @@ class CrossFileTaintModule extends BaseModule {
         // GT-03 (#771): a redirect whose tainted value can only land in the
         // query string, or whose target was verified by a negated guard
         // earlier in the same handler, is not an open redirect.
+        let paramOnlyRedirect = false;
         if (sink.name === 'redirect') {
-          const refs = Array.from(tainted).filter((v) => this._lineReferencesVar(sinkSafeLine, v));
+          const allRefs = Array.from(tainted).filter((v) => this._lineReferencesVar(sinkSafeLine, v));
+          const refs = allRefs.filter((v) => !redirectSafe.has(v));
+          if (allRefs.length > 0 && refs.length === 0) continue;
           if (refs.length > 0 && this._redirectCannotBeOpen(raw, masked, i, refs)) continue;
+          paramOnlyRedirect = refs.length > 0 && refs.every((v) => paramOnly.has(v));
         }
         // Is a tainted var present on this line?
         for (const v of tainted) {
@@ -710,6 +743,7 @@ class CrossFileTaintModule extends BaseModule {
               rawLine: raw,
               sink: sink.name,
               contextLines,
+              paramOnly: paramOnlyRedirect,
             });
             break; // one hit per line per sink type is enough
           }
@@ -840,8 +874,13 @@ class CrossFileTaintModule extends BaseModule {
   // ---------------------------------------------------------------------------
 
   _lineReferencesVar(line, varName) {
-    // Match the variable as a whole word (not as part of a longer identifier)
-    const re = new RegExp(`\\b${varName}\\b`);
+    // The variable as a whole token — not part of a longer identifier, and
+    // not a PROPERTY of the same name: `c.redirect(` is not a use of a
+    // variable called `redirect` (gluecron-src auth.tsx, 2026-10-02 — every
+    // multi-line `return c.redirect(` in the file was reported as the
+    // already-sanitised `redirect` reaching the sink). Doctrine §5: tokens,
+    // not substrings.
+    const re = new RegExp(`(?<![\\w$.])${varName}(?![\\w$])`);
     return re.test(line);
   }
 
@@ -854,8 +893,32 @@ class CrossFileTaintModule extends BaseModule {
     // inside `https://`. A commented-out redirect never reaches here — sink
     // detection runs on the masked line.
     if (FIXED_HOST_REDIRECT_RE.test(rawLine)) return true;
+    if (this._redirectFixedPath(rawLine)) return true;
     if (this._redirectTaintOnlyInQuery(rawLine, refs)) return true;
     return refs.every((v) => this._redirectTargetVerified(masked, lineIdx, v));
+  }
+
+  // Shape 3 (gluecron-src, 2026-10-02 — 279 of its 282 crossFileTaint
+  // blockers): the target is a constant string, or a template whose literal
+  // text BEFORE the first hole is a same-origin path with a real first
+  // segment — `c.redirect(\`/orgs/${slug}\`)`. Whatever `slug` holds, the
+  // URL starts with `/o`, so the browser stays on this origin (dot segments
+  // and a later `//` are path, not authority). Still fires: `/${x}` (x =
+  // `/evil.example` makes `//evil.example`, protocol-relative), `${x}/…`,
+  // and any non-literal argument.
+  _redirectFixedPath(rawLine) {
+    const m = /\b(?:res|ctx|c)\.redirect\s*\(\s*(['"`])/.exec(rawLine);
+    if (!m) return false;
+    const q = m[1];
+    const start = m.index + m[0].length;
+    if (q !== '`') {
+      const end = rawLine.indexOf(q, start);
+      return end !== -1 && /^\s*[),]/.test(rawLine.slice(end + 1));
+    }
+    const hole = rawLine.indexOf('${', start);
+    const close = rawLine.indexOf('`', start);
+    if (hole === -1 || (close !== -1 && close < hole)) return close !== -1 && /^\s*[),]/.test(rawLine.slice(close + 1));
+    return /^\/[A-Za-z0-9_~.-]/.test(rawLine.slice(start, hole));
   }
 
   // Shape 1: `c.redirect(\`${webUrl}/onboarding?x=${encodeURIComponent(t)}\`)`.

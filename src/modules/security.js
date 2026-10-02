@@ -27,6 +27,7 @@ const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const { literalKindAt } = require('../core/source-strip');
 const { scanDisclosure } = require('../core/disclosure-rules');
+const { isTestPath } = require('../core/test-paths');
 // The published-example list lives with the module that owns the doctrine
 // (secrets.js PUBLISHED_EXAMPLE_CREDENTIALS) — one list, two rules.
 const { PUBLISHED_EXAMPLE_CREDENTIALS } = require('./secrets');
@@ -890,7 +891,9 @@ class SecurityModule extends BaseModule {
     const SCANNER_PATH_RE = /(?:^|\/)(?:src\/modules|src\/core|tests)\//;
     for (const file of this._collectFiles(projectRoot, JS_SOURCE_EXTS)) {
       const relPath = repoRelative(projectRoot, file);
-      if (SCANNER_PATH_RE.test(relPath.replace(/\\/g, '/'))) continue;
+      // Tests plant these shapes on purpose (a fake secret, a fixture error
+      // message) — gluecron-src's own tests were the first two hits.
+      if (SCANNER_PATH_RE.test(relPath.replace(/\\/g, '/')) || isTestPath(relPath)) continue;
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
       for (const f of scanDisclosure(relPath, content)) {

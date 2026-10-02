@@ -585,6 +585,80 @@ function go(req, res) {
   });
 });
 
+// gluecron-src 2026-10-02: 279 of 282 crossFileTaint blockers were Hono
+// redirects to a same-origin path with a fixed first segment.
+describe('CrossFileTaintModule — CONTROL PAIR: a redirect that starts with a fixed same-origin path', () => {
+  const handler = (target, source = 'c.req.param("slug")') => ({
+    'org.ts': `
+orgRoutes.get("/orgs/:slug/settings", async (c) => {
+  const slug = ${source};
+  return c.redirect(${target});
+});
+`,
+  });
+  const redirects = (result, sev) => (sev === 'error' ? result.errors() : result.warnings()).filter((e) => e.sink === 'redirect');
+  it('quiet: c.redirect(`/orgs/${slug}`) — the URL always starts with /o, so it stays on this origin', async () => {
+    const result = await run(handler('`/orgs/${slug}`'));
+    assert.strictEqual(redirects(result, 'error').length + redirects(result, 'warning').length, 0);
+  });
+  it('STILL FIRES (error) from query input: c.redirect(`/${next}`) — "/evil.example" makes "//evil.example"', async () => {
+    const result = await run(handler('`/${slug}`', 'c.req.query("next")'));
+    assert.ok(redirects(result, 'error').length > 0);
+  });
+  it('STILL FIRES (error) from query input: c.redirect(`${next}/settings`) and c.redirect(next)', async () => {
+    assert.ok(redirects(await run(handler('`${slug}/settings`', 'c.req.query("next")')), 'error').length > 0);
+    assert.ok(redirects(await run(handler('slug', 'c.req.query("next")')), 'error').length > 0);
+  });
+  it('WARNING, not error, when only a route parameter reaches it — one path segment, open only via a backslash', async () => {
+    for (const target of ['`/${slug}`', '`${slug}/settings`', 'slug']) {
+      const result = await run(handler(target));
+      assert.strictEqual(redirects(result, 'error').length, 0, target);
+      assert.ok(redirects(result, 'warning').length > 0, target);
+    }
+  });
+  it('quiet: a variable NAMED redirect is not "used" by the c.redirect( method on a later multi-line call', async () => {
+    const result = await run({
+      'auth.ts': `
+auth.post("/login/2fa", async (c) => {
+  const redirect = c.req.query("redirect");
+  if (!ok) {
+    return c.redirect(
+      "/login?error=locked"
+    );
+  }
+});
+`,
+    });
+    assert.strictEqual(result.errors().filter((e) => e.sink === 'redirect').length, 0);
+  });
+  it('STILL FIRES: the same variable passed to c.redirect(redirect)', async () => {
+    const result = await run({
+      'auth.ts': `
+auth.post("/login/2fa", async (c) => {
+  const redirect = c.req.query("redirect");
+  return c.redirect(redirect);
+});
+`,
+    });
+    assert.ok(result.errors().filter((e) => e.sink === 'redirect').length > 0);
+  });
+  it('quiet: the variable came from a same-origin helper — const redirect = safeRedirect(c.req.query("redirect"), "/")', async () => {
+    const result = await run({
+      'auth.ts': `
+auth.post("/login/2fa", async (c) => {
+  const redirect = safeRedirect(c.req.query("redirect"), "/");
+  const a = 1;
+  const b = 2;
+  const d = 3;
+  const e = 4;
+  return c.redirect(redirect);
+});
+`,
+    });
+    assert.strictEqual(result.errors().filter((x) => x.sink === 'redirect').length, 0);
+  });
+});
+
 describe('CrossFileTaintModule — CONTROL PAIR (#771 GT-03): a negated verify-guard earlier in the same handler', () => {
   it('quiet: the customer line — `if (!verifyTrackedUrl(emailId, targetUrl, sig)) return 400` twenty lines above c.redirect(targetUrl)', async () => {
     const result = await run({
