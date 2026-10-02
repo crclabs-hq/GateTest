@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useSalesStatus } from '../components/useSalesStatus';
 
 const SUPPORT_EMAIL = 'support@gatetest.io';
 
@@ -44,6 +45,22 @@ export default function McpCheckoutButton({ label }: { label: string }) {
         if (d.checkoutUrl) window.location.href = d.checkoutUrl;
       })
       .catch(() => { window.location.href = '/mcp'; });
+  }
+
+  const sales = useSalesStatus();
+  if (sales && sales.paused) {
+    return (
+      <div className="inline-flex flex-col items-start gap-2">
+        <button
+          type="button"
+          disabled
+          className="btn-cta inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl cursor-not-allowed opacity-60"
+        >
+          Hosted endpoint — not on sale yet
+        </button>
+        <p className="text-sm text-muted max-w-md">{sales.message} The local MCP server is free and works today.</p>
+      </div>
+    );
   }
 
   if (emailReady === false) {

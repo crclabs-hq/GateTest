@@ -9,6 +9,7 @@ import { SUPPORT_EMAIL } from "@/app/lib/site-url";
 import REGISTRY_MODULES from "@/app/lib/mcp-remote-modules.json";
 import { extractIssuesFromModules, type UnparseableIssue } from "@/app/lib/issue-extractor";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { useSalesStatus } from "@/app/components/useSalesStatus";
 
 interface ModuleResult {
   name: string;
@@ -121,6 +122,10 @@ export default function ScanStatus() {
   // cookie and returns the GitHub login if valid).
   const [signedInUser, setSignedInUser] = useState<{ login: string; email?: string } | null>(null);
   const [upgradingToFix, setUpgradingToFix] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  // Sales paused (lib/sales-pause.js): no upgrade offer for a plan we do not sell.
+  const salesStatus = useSalesStatus();
+  const salesPaused = Boolean(salesStatus && salesStatus.paused);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/me", { credentials: "same-origin" })
@@ -295,10 +300,12 @@ export default function ScanStatus() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier: upgradeTier, repoUrl: params.repo }),
       });
-      const data = await res.json() as { checkoutUrl?: string };
+      const data = await res.json() as { checkoutUrl?: string; error?: string };
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       } else {
+        // Say why (e.g. sales paused) instead of silently resetting the button.
+        setUpgradeError(data.error || "Could not start checkout. Please try again.");
         setUpgradingToFix(false);
       }
     } catch {
@@ -839,7 +846,10 @@ export default function ScanStatus() {
                 Dynamic personalised copy — pulls the actual issue count from
                 this scan so the visitor sees "47 issues — Scan + Fix will
                 fix up to ~47 of them in a PR" not generic feature copy. */}
-            {(scanResult?.totalIssues || 0) > 0 && (params.tier === "quick" || params.tier === "full") && (
+            {upgradeError && (
+              <p role="status" className="text-sm text-muted p-4 rounded-xl border border-border bg-[var(--surface-solid)]">{upgradeError}</p>
+            )}
+            {!salesPaused && (scanResult?.totalIssues || 0) > 0 && (params.tier === "quick" || params.tier === "full") && (
               <div className="p-6 rounded-xl border-2 border-accent/30 bg-gradient-to-br from-accent/10 via-accent/5 to-transparent relative overflow-hidden">
                 {/* Subtle glow accent */}
                 <div aria-hidden="true" className="absolute -top-24 -right-24 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none" />

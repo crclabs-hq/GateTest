@@ -21,6 +21,7 @@
  * directly from route.ts so there is exactly one tier table to update.
  */
 
+const { salesPaused, salesPausedBody } = require('./sales-pause');
 const { TIERS } = require("./checkout-tiers.ts");
 const { resolveSiteUrl } = require("./site-url");
 
@@ -110,6 +111,11 @@ function buildStripeCheckoutParams({ tier, tierKey, repoUrl, baseUrl }) {
  * }} args
  */
 async function createCheckoutSession({ input, env, fetchImpl }) {
+  // Same switch as POST /api/checkout (lib/sales-pause.js): closed unless
+  // GATETEST_SALES_PAUSED is exactly "0".
+  if (salesPaused(env)) {
+    return { ok: false, status: 503, ...salesPausedBody() };
+  }
   const secret = env.STRIPE_SECRET_KEY;
   if (!secret) {
     return { ok: false, status: 503, error: 'Payments not configured yet' };

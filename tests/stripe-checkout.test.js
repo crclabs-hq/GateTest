@@ -225,10 +225,25 @@ describe('buildStripeCheckoutParams', () => {
 // createCheckoutSession — orchestrates validate → build → fetchImpl → map
 // ---------------------------------------------------------------------------
 describe('createCheckoutSession', () => {
+  // Sales are paused unless GATETEST_SALES_PAUSED is exactly "0"
+  // (lib/sales-pause.js); these cases exercise the open-checkout path.
   const BASE_ENV = {
+    GATETEST_SALES_PAUSED: '0',
     STRIPE_SECRET_KEY: 'sk_test_abc123',
     NEXT_PUBLIC_BASE_URL: 'https://gatetest.io',
   };
+
+  it('refuses with sales_paused and never calls Stripe while sales are paused (switch unset)', async () => {
+    const { fetchImpl, calls } = makeMockFetch({
+      body: { id: 'cs_test_1', url: 'https://checkout.stripe.com/cs_test_1' },
+    });
+    const { GATETEST_SALES_PAUSED: _open, ...pausedEnv } = BASE_ENV;
+    const result = await createCheckoutSession({ input: { tier: 'quick', repoUrl: VALID_REPO }, env: pausedEnv, fetchImpl });
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.status, 503);
+    assert.strictEqual(result.code, 'sales_paused');
+    assert.strictEqual(calls.length, 0, 'must not call Stripe while sales are paused');
+  });
 
   it('returns 503 when STRIPE_SECRET_KEY is unset', async () => {
     const { fetchImpl, calls } = makeMockFetch({
@@ -236,7 +251,7 @@ describe('createCheckoutSession', () => {
     });
     const result = await createCheckoutSession({
       input: { tier: 'quick', repoUrl: VALID_REPO },
-      env: {},
+      env: { GATETEST_SALES_PAUSED: '0' },
       fetchImpl,
     });
     assert.strictEqual(result.ok, false);
@@ -408,7 +423,7 @@ describe('createCheckoutSession', () => {
     });
     const result = await createCheckoutSession({
       input: { tier: 'full', repoUrl: VALID_REPO },
-      env: { STRIPE_SECRET_KEY: 'sk_test_xyz' },
+      env: { GATETEST_SALES_PAUSED: '0', STRIPE_SECRET_KEY: 'sk_test_xyz' },
       fetchImpl,
     });
     assert.strictEqual(result.ok, true);
