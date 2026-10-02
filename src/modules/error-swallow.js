@@ -344,6 +344,18 @@ class ErrorSwallowModule extends BaseModule {
             suggestion: 'Either re-throw after logging, call `next(err)` in Express, or convert to a typed Result. Don\'t pretend the operation succeeded.',
           });
         }
+        if (block.closed && !isHarness) {
+          const forgot = this._destructiveThenForget(masked, i, block);
+          if (forgot) {
+            issues += this._flag(result, `error-swallow:destructive-then-forget:${rel}:${i + 1}`, {
+              severity: 'error',
+              file: rel,
+              line: i + 1,
+              message: `${rel}:${i + 1} a failed ${forgot.call}() is caught without stopping, then the record that tracks it is deleted at line ${forgot.deleteLine} — the resource is orphaned and reported as gone`,
+              suggestion: 'Return or throw from the catch, and delete the tracking record only on the success path (ideally after verifying the resource is really gone).',
+            });
+          }
+        }
       }
 
       // 2. `.catch(() => {})` / `.catch(() => null)` / `.catch(noop)`
@@ -881,6 +893,32 @@ class ErrorSwallowModule extends BaseModule {
       if (walkLine(j, 0)) return done(true);
     }
     return done(false);
+  }
+
+  /**
+   * `try { await dropDatabase(x) } catch (e) { log }` followed by deleting the
+   * row that tracks x: the destroy failed, nothing stopped, and the only
+   * record of the still-running resource is erased. Tallrig shipped this in
+   * deleteTenantDB (TALLRIG-2026-016, fixed): a failed DROP left the
+   * customer's database alive with no row pointing at it.
+   */
+  _destructiveThenForget(masked, catchIdx, block) {
+    if (/\b(?:throw|return|reject\s*\(|process\.exit|next\s*\(\s*\w)/.test(block.code)) return null;
+    let tryIdx = -1;
+    for (let j = catchIdx; j >= Math.max(0, catchIdx - 40); j -= 1) {
+      if (/\btry\s*\{/.test(masked[j] || '')) { tryIdx = j; break; }
+    }
+    if (tryIdx === -1) return null;
+    const tryBody = masked.slice(tryIdx, catchIdx + 1).join('\n');
+    const call = /\bawait\s+(?:[\w$.]+\.)?((?:delete|drop|destroy|remove|purge|terminate|deprovision)\w*)\s*\(/i.exec(tryBody);
+    if (!call) return null;
+    const endIdx = catchIdx + (block.body.match(/\n/g) || []).length;
+    for (let j = endIdx + 1; j < Math.min(masked.length, endIdx + 13); j += 1) {
+      if (/\.delete\s*\(|\bDELETE\s+FROM\b|\.destroy\s*\(|\.deleteOne\s*\(|\.deleteMany\s*\(/i.test(masked[j] || '')) {
+        return { call: call[1], deleteLine: j + 1 };
+      }
+    }
+    return null;
   }
 
   // True if the catch body only contains `console.*` calls (or a
