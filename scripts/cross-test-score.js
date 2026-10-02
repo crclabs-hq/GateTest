@@ -60,6 +60,7 @@ const CLASS_RULES = {
   'vendor-text-leak': ['upstream-error-leak'],
   'insecure-default-plan-tier': ['insecure-default-tier'],
   'lockfile-manifest-drift': ['peer-meta-drift'],
+  'ambient-credential-fallback': ['ambient-credential-fallback'],
 };
 
 const SEP_RE = /^\s*(?:\/\/|--|#)\s*\.\.\.\s*([^\s:]+\.[\w]+):(\d+)\s*$/;

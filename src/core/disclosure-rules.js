@@ -254,10 +254,42 @@ function insecureDefaultTier(relPath, lines) {
   return out;
 }
 
+// A request acting FOR A USER falls back to the PLATFORM's own credential
+// when the user has none: the user reaches what only the platform should
+// (confused deputy). Tallrig shipped it (TALLRIG-2026-024): no linked GitHub
+// key → `new GitHubClient(boxGithubToken())`, so any caller could read
+// whatever the box token could. Two shapes: `userCred ?? process.env.X_TOKEN`
+// and `if (!row) return …(boxToken())` after a user-credential lookup.
+const PLATFORM_TOKEN_RE = /\bprocess\.env\.[A-Z0-9_]*(?:TOKEN|API_KEY|PAT)\b|\b(?:box|platform|server|global|service|app|admin)[A-Z]\w*Token\s*\(/;
+const USER_SCOPE_RE = /\buserId\b|\bctx\.user\b|\bsession\.user\b|\breq\.user\b|\bc\.get\(\s*['"]user['"]\s*\)|\bcurrentUser\b/;
+const FALLBACK_RE = /(?:\?\?|\|\|)\s*(?:process\.env\.[A-Z0-9_]*(?:TOKEN|API_KEY|PAT)\b|(?:box|platform|server|global|service|app|admin)[A-Z]\w*Token\s*\()/;
+const NO_ROW_FALLBACK_RE = /\bif\s*\(\s*!\s*[\w$.]+\s*\)\s*return\b/;
+
+function ambientCredentialFallback(relPath, lines) {
+  const out = [];
+  if (OPERATOR_PATH_RE.test(String(relPath).replace(/\\/g, '/'))) return out;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (isComment(line) || !PLATFORM_TOKEN_RE.test(line)) continue;
+    const shape = FALLBACK_RE.test(line) || (NO_ROW_FALLBACK_RE.test(line) && PLATFORM_TOKEN_RE.test(line));
+    if (!shape) continue;
+    const context = lines.slice(Math.max(0, i - 12), i + 1).join('\n');
+    if (!USER_SCOPE_RE.test(context)) continue;
+    out.push({
+      rule: 'ambient-credential-fallback',
+      line: i + 1,
+      severity: 'warning',
+      message: `${relPath}:${i + 1} a request acting for a user falls back to the platform's own credential when the user has none — the user reaches what only the platform should (confused deputy)`,
+      suggestion: "With no user credential, act anonymously (or refuse); never borrow the platform token. Allow-list the few admin-only callers explicitly.",
+    });
+  }
+  return out;
+}
+
 /** All disclosure rules for one file. */
 function scanDisclosure(relPath, content) {
   const lines = String(content).split(/\r?\n/);
-  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines), ...upstreamErrorLeak(relPath, lines), ...insecureDefaultTier(relPath, lines)];
+  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines), ...upstreamErrorLeak(relPath, lines), ...insecureDefaultTier(relPath, lines), ...ambientCredentialFallback(relPath, lines)];
 }
 
-module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak, insecureDefaultTier };
+module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak, insecureDefaultTier, ambientCredentialFallback };

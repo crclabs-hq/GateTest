@@ -274,3 +274,23 @@ describe('project-config rules', () => {
     assert.equal(cspEvalConflict([lax, cfg]).length, 0);
   });
 });
+
+describe('ambient-credential-fallback', () => {
+  const { ambientCredentialFallback } = require('../src/core/disclosure-rules');
+  it('fires: no user key → the platform token, inside a user-scoped function', () => {
+    const src = ['async function clientFor(db, userId) {', '  const row = await findUserKey(db, userId);', '  if (!row) return new RepoClient(boxGithubToken());', '  return new RepoClient(row.token);', '}'];
+    assert.equal(ambientCredentialFallback('src/api/clients.ts', src).length, 1);
+  });
+  it('fires: userToken ?? process.env.GITHUB_TOKEN for a request user', () => {
+    const src = ['const token = ctx.user.githubToken ?? process.env.GITHUB_TOKEN;'];
+    assert.equal(ambientCredentialFallback('src/api/read.ts', src).length, 1);
+  });
+  it('control: anonymous when the user has none (the fix) stays quiet', () => {
+    const src = ['async function clientFor(db, userId) {', '  const row = await findUserKey(db, userId);', '  if (!row) return new RepoClient(undefined);', '}'];
+    assert.equal(ambientCredentialFallback('src/api/clients.ts', src).length, 0);
+  });
+  it('control: a CLI reading its own GITHUB_TOKEN (no user in scope) stays quiet', () => {
+    assert.equal(ambientCredentialFallback('src/cli/run.js', ['const token = args.token ?? process.env.GITHUB_TOKEN;']).length, 0);
+    assert.equal(ambientCredentialFallback('bin/tool.js', ['const t = ctx.user.token ?? process.env.GITHUB_TOKEN;']).length, 0);
+  });
+});
