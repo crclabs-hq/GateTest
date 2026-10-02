@@ -177,4 +177,4 @@ function main(argv) {
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));
 
-module.exports = { splitSnippet, grade, score, mapsToClass, CLASS_RULES, CONTEXT_MODULES };
+module.exports = { splitSnippet, grade, score };

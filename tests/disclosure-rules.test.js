@@ -70,6 +70,11 @@ describe('error-detail-leak', () => {
     ].join('\n'));
     assert.equal(errorDetailLeak('a.ts', src).length, 0);
   });
+  it('control: a CLI, script or admin-only route may name the variable — the reader is the operator', () => {
+    const src = L('return { note: "Set OPENAI_API_KEY to enable suggestions." };');
+    for (const p of ['bin/cli.js', 'scripts/sync.js', 'website/app/api/admin/repos/route.ts']) assert.equal(errorDetailLeak(p, src).length, 0, p);
+    assert.equal(errorDetailLeak('website/app/api/search/route.ts', src).length, 1);
+  });
   it('fires: config errors name env vars AND a route returns err.message to the client', () => {
     const src = L([
       'function authUrl() {',
@@ -108,6 +113,14 @@ describe('weak-kdf', () => {
   it('control: a content hash used as an id (hex digest, no key context) stays quiet', () => {
     const src = L(['function etag(body) {', '  return createHash("sha256").update(body).digest("hex");', '}'].join('\n'));
     assert.equal(weakKdf('a.ts', src).length, 0);
+  });
+  it('severity: a secret that also signs (or is the session secret) is an error; a dedicated one is a warning', () => {
+    const shared = L(['function deriveKey(secret) {', '  return createHash("sha256").update(secret).digest();', '}', 'function sign(p, secret) { return createHmac("sha256", secret).update(p).digest(); }'].join('\n'));
+    assert.equal(weakKdf('a.ts', shared)[0].severity, 'error');
+    const session = L(['function currentKey() { return deriveKey(process.env.SESSION_SECRET); }', 'function deriveKey(s) {', '  return createHash("sha256").update(s).digest();', '}'].join('\n'));
+    assert.equal(weakKdf('a.ts', session)[0].severity, 'error');
+    const dedicated = L(['function getEncryptionKey() {', '  const secret = process.env.VAULT_KEY_MATERIAL;', '  return createHash("sha256").update(secret).digest();', '}'].join('\n'));
+    assert.equal(weakKdf('a.ts', dedicated)[0].severity, 'warning');
   });
   it('control: HKDF derivation stays quiet', () => {
     const src = L(['function deriveKey(secret) {', '  return Buffer.from(hkdfSync("sha256", secret, salt, "at-rest-v1", 32));', '}'].join('\n'));

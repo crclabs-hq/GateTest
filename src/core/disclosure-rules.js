@@ -52,6 +52,7 @@ const ERR_MESSAGE_RE = /\b(?:err|error|e)\.message\b/;
 const RESPONSE_SINK_RE = /\.(?:json|send|redirect)\s*\(|\bnew\s+TRPCError\s*\(/;
 
 const CREATE_HASH_RE = /createHash\(\s*['"`](?:sha1|sha-1|sha256|sha-256|sha384|sha512|md5)['"`]\s*\)/i;
+const SHARED_SECRET_NAME_RE = /SESSION_SECRET|JWT_SECRET|COOKIE_SECRET|AUTH_SECRET|SIGNING_(?:KEY|SECRET)|sessionSecret|jwtSecret/;
 const SECRETISH_RE = /secret|SECRET|passphrase|masterKey|MASTER_KEY|process\.env\./;
 const KEY_CONTEXT_RE = /\bfunction\s+\w*[Kk]ey\w*\s*\(|\b\w*[Kk]ey\w*\s*=\s*(?:\(|function|async)|createCipheriv|createDecipheriv/;
 
@@ -114,8 +115,13 @@ function urlCredentialParam(relPath, lines) {
   return out;
 }
 
+// Where the reader IS the operator — a CLI, a maintenance script, an
+// admin-only route — naming the variable to set is the right message.
+const OPERATOR_PATH_RE = /(?:^|\/)(?:bin|scripts|cli|tools)\/|\/admin\//;
+
 function errorDetailLeak(relPath, lines) {
   const out = [];
+  if (OPERATOR_PATH_RE.test(String(relPath).replace(/\\/g, '/'))) return out;
   const throwsEnvName = lines.some((l) => !isComment(l) && THROW_ENV_RE.test(l) && ENV_NAME_RE.test(l))
     || lines.some((l, i) => !isComment(l) && THROW_ENV_RE.test(l) && ENV_NAME_RE.test(lines.slice(i, i + 3).join(' ')));
   for (let i = 0; i < lines.length; i++) {
@@ -160,11 +166,20 @@ function weakKdf(relPath, lines) {
     const context = lines.slice(Math.max(0, i - 10), i + 1).join('\n');
     const keyish = fileUsesCipher || KEY_CONTEXT_RE.test(context);
     if (!keyish || !(SECRETISH_RE.test(upd[1]) || SECRETISH_RE.test(context))) continue;
+    // ERROR when the secret demonstrably does a second job (it also signs,
+    // or it is the session/JWT secret) — key separation is broken, which is
+    // the defect Tallrig shipped. A dedicated secret hashed once is weaker
+    // practice but not that bug: warning.
+    const arg = upd[1].replace(/\s+as\s+\w+/, '').trim();
+    const shared = SHARED_SECRET_NAME_RE.test(context + upd[1])
+      || lines.some((l) => /createHmac\(/.test(l) && arg && l.includes(arg));
     out.push({
       rule: 'weak-kdf',
       line: i + 1,
-      severity: 'error',
-      message: `${relPath}:${i + 1} encryption key derived by hashing a secret once — no salt, no work factor, and the same secret may serve another purpose`,
+      severity: shared ? 'error' : 'warning',
+      message: shared
+        ? `${relPath}:${i + 1} encryption key derived by hashing a secret that also signs/authenticates — no key separation, no salt, no work factor`
+        : `${relPath}:${i + 1} encryption key derived by hashing a secret once — prefer HKDF with a salt and a purpose label`,
       suggestion: 'Derive with HKDF (crypto.hkdfSync, a salt and a purpose label such as "at-rest-v1") or scrypt; keep the at-rest key separate from the session-signing secret.',
     });
   }
@@ -177,4 +192,4 @@ function scanDisclosure(relPath, content) {
   return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines)];
 }
 
-module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf, ENV_NAME_RE };
+module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf };
