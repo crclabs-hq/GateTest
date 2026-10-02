@@ -165,6 +165,7 @@ Craig hit the plan's usage limit mid-launch on 16 Sep 2026. Three meters spend C
 4. **No polling.** Waiting on CI, a build or a registry is one background command with a long sleep, never a loop of turns. One completion notification per wait.
 5. **Ask the tree, not the model.** Before spawning anything: `gh pr list`, `git fetch`, `git diff --stat origin/main`. Half of tonight's re-work was fixing what a concurrent PR had already changed.
 6. **Say what was checked, then stop.** The report is the deliverable. No re-verifying a green result, no summarising the summary.
+6a. **Claim before you change (Craig 2026-10-01).** The site medic and Claude sessions both write to this repo. Before editing, run `node scripts/work-claims.js acquire --repo crclabs-hq/GateTest --files <every file you will edit>` (add `--main-red` when fixing red main): `acquired` → go; `held` → do not start, that work is someone else's; `not_checked` → say so and do not start blind. Release the leases when the PR merges. The medic uses `medic/` branches only and yields to sessions; `.github/workflows/work-claims.yml` fails a medic PR that overlaps an open session PR. Protocol: `docs/ops/WORK-CLAIMS.md`.
 
 ### Meter 2 — the API key in the Anthropic console (CI and ops automation)
 
