@@ -12,11 +12,13 @@
  *   - `outOfScopeForGateTest` always populated — every regulation
  *     has parts a code scanner CANNOT address (physical security,
  *     contracts, training, governance).
+ *   - No SOC 2 entry (Craig, 2026-10-01): a SOC 2 compliance scan is a
+ *     separate future product, not built or sold. /regulation/soc2
+ *     permanently redirects to /regulation (website/next.config.ts).
  *
  * Source citations:
  *   - GDPR fines: Art. 83(5) GDPR — https://gdpr-info.eu/art-83-gdpr/
  *   - HIPAA: 45 CFR §§ 160.404 / 164 Security Rule
- *   - SOC 2: AICPA Trust Services Criteria (TSP Section 100, 2017)
  *   - CCPA/CPRA: Cal. Civ. Code § 1798.155
  *   - PCI DSS v4.0: PCI SSC, effective 2024-03-31 (mandatory 2025-03)
  *   - ISO/IEC 27001:2022 — published 2022-10-25
@@ -108,37 +110,6 @@ export const REGULATIONS: Regulation[] = [
       "Workforce training, sanction policies, and access authorisation procedures.",
       "Physical safeguards (facility access, workstation security, device disposal).",
       "Breach notification within 60 days — procedural, not code-level.",
-    ],
-  },
-  {
-    slug: "soc2",
-    name: "SOC 2",
-    longName: "SOC 2 Trust Services Criteria (Type I and Type II)",
-    jurisdiction: "Global — voluntary attestation framework, but contractually required by most enterprise SaaS buyers.",
-    authoritativeUrl: "https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2",
-    countriesAffected: ["usa"],
-    fineRange: "Not a statutory regime — no government fines. The cost of failure is loss of enterprise deals: a failed Type II almost always means a customer pulling the contract.",
-    effectiveSince: "2010 (Trust Services Criteria revised 2017, refreshed 2022)",
-    whyDevsCareThisYear:
-      "By 2026 every Series B SaaS sale in North America requires a Type II report. The Type II window is 6-12 months of evidence, so the technical controls auditors sample (secret rotation, CI-pipeline hardening, supply-chain hygiene) need to be passing in your pipeline NOW.",
-    topThreeModules: ["secretRotation", "ciSecurity", "dependencies"],
-    catchableTechnicalFindings: [
-      "Long-lived credentials never rotated in the last 90+ days — CC6.1 logical-access controls.",
-      "CI workflow steps with continue-on-error: true on the security gate — CC7.1 change-management control bypass.",
-      "Unpinned third-party GitHub Actions (actions/checkout@v4 instead of SHA) — CC6.6 supply-chain controls.",
-      "Wildcard dependency pins (\"package\": \"*\" or \"latest\") in package.json / requirements.txt — CC6.6.",
-      "Hardcoded secrets in committed source — CC6.1.",
-      "Vulnerable dependency versions with public CVEs — CC7.1 vulnerability management.",
-      "Missing .env.example documentation for runtime configuration — CC8.1 change-management evidence.",
-      "Logging that captures credentials or tokens in plaintext — CC6.1 + CC7.2.",
-      "Drift between declared .env.example and code's process.env reads — CC8.1 baseline-configuration evidence.",
-    ],
-    outOfScopeForGateTest: [
-      "Defining and documenting your Trust Services Criteria scope.",
-      "Vendor risk-management program (CC9.2) — that is a procurement workflow.",
-      "Background checks on engineers (CC1.4) — HR control.",
-      "Incident response runbooks and tabletop exercises (CC7.3, CC7.4).",
-      "Auditor selection and the actual Type II engagement.",
     ],
   },
   {

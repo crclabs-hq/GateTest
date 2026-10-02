@@ -85,14 +85,15 @@ describe('scan-fix Nuclear wiring — PR body includes CISO attachment notice', 
     assert.ok(body.includes(descriptor.path), 'PR body should include the report file path');
   });
 
-  it('mentions OWASP, SOC2, CIS, and the 30/60/90 roadmap framing', async () => {
+  it('mentions OWASP, CIS, and the 30/60/90 roadmap framing — and never SOC 2', async () => {
     const { descriptor } = await buildCisoDescriptor();
     const body = composePrBody({
       fixes: FIXES,
       cisoReport: descriptor,
     });
     assert.match(body, /OWASP Top 10/);
-    assert.match(body, /SOC2 Trust Service Criteria/);
+    // SOC 2 mapping is a separate future product (Craig 2026-10-01).
+    assert.doesNotMatch(body, /SOC ?2/i);
     assert.match(body, /CIS Controls v8/);
     assert.match(body, /30\/60\/90-day remediation roadmap/);
   });
@@ -114,13 +115,10 @@ describe('scan-fix Nuclear wiring — PR body includes CISO attachment notice', 
       cisoReport: descriptor,
     });
     const owaspMatch = body.match(/OWASP Top 10 2021 \((\d+) categories implicated\)/);
-    const soc2Match = body.match(/SOC2 Trust Service Criteria \((\d+) criteria implicated\)/);
     const cisMatch = body.match(/CIS Controls v8 \((\d+) controls implicated\)/);
     assert.ok(owaspMatch);
-    assert.ok(soc2Match);
     assert.ok(cisMatch);
     assert.equal(Number(owaspMatch[1]), result.complianceGaps.owasp.length);
-    assert.equal(Number(soc2Match[1]), result.complianceGaps.soc2.length);
     assert.equal(Number(cisMatch[1]), result.complianceGaps.cis.length);
   });
 });

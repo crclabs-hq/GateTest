@@ -11,7 +11,6 @@ const {
   renderReport,
   classifySeverity,
   OWASP_MAPPING,
-  SOC2_MAPPING,
   CIS_MAPPING,
   MAX_FINDINGS_FOR_NARRATIVE,
 } = require('../website/app/lib/ciso-report-generator');
@@ -61,11 +60,11 @@ describe('classifySeverity', () => {
 // ─── buildComplianceGaps ──────────────────────────────────────────────────────
 
 describe('buildComplianceGaps', () => {
-  it('returns owasp/soc2/cis arrays', () => {
+  it('returns owasp/cis arrays and no soc2 key (SOC 2 is a future product, Craig 2026-10-01)', () => {
     const gaps = buildComplianceGaps(SAMPLE_FINDINGS);
     assert.ok(Array.isArray(gaps.owasp));
-    assert.ok(Array.isArray(gaps.soc2));
     assert.ok(Array.isArray(gaps.cis));
+    assert.deepEqual(Object.keys(gaps).sort(), ['cis', 'owasp']);
   });
 
   it('maps secrets to OWASP A02 and A07', () => {
@@ -79,12 +78,6 @@ describe('buildComplianceGaps', () => {
     const gaps = buildComplianceGaps([makeF('ssrf', 'error')]);
     const owaspIds = gaps.owasp.map(e => e.control);
     assert.ok(owaspIds.includes('A10:2021'));
-  });
-
-  it('maps secrets to SOC2 CC6.1', () => {
-    const gaps = buildComplianceGaps([makeF('secrets', 'error')]);
-    const soc2Ids = gaps.soc2.map(e => e.control);
-    assert.ok(soc2Ids.includes('CC6.1'));
   });
 
   it('maps secrets to CIS Control 3', () => {
@@ -115,7 +108,6 @@ describe('buildComplianceGaps', () => {
     // findings the customer can see in the appendix.
     const gaps = buildComplianceGaps([makeF('unknownModule', 'error')]);
     assert.ok(gaps.owasp.length > 0, 'fallback OWASP applied');
-    assert.ok(gaps.soc2.length > 0, 'fallback SOC2 applied');
     assert.ok(gaps.cis.length > 0, 'fallback CIS applied');
   });
 
@@ -129,7 +121,6 @@ describe('buildComplianceGaps', () => {
   it('handles empty findings array', () => {
     const gaps = buildComplianceGaps([]);
     assert.equal(gaps.owasp.length, 0);
-    assert.equal(gaps.soc2.length, 0);
     assert.equal(gaps.cis.length, 0);
   });
 });
@@ -269,7 +260,7 @@ describe('renderReport', () => {
     assert.ok(md.includes('OWASP Top 10'));
   });
 
-  it('includes SOC2 section', () => {
+  it('has no SOC 2 section (SOC 2 mapping is not a product GateTest sells)', () => {
     const md = renderReport({
       hostName: 'x',
       scanDate: '2026-01-01',
@@ -280,7 +271,7 @@ describe('renderReport', () => {
       complianceGaps: gaps,
       roadmap,
     });
-    assert.ok(md.includes('SOC2'));
+    assert.ok(!/SOC ?2/i.test(md), 'report must not mention SOC 2');
   });
 
   it('includes CIS Controls section', () => {
@@ -352,7 +343,7 @@ describe('renderReport', () => {
       narrative: null,
       findings: [],
       chains: [],
-      complianceGaps: { owasp: [], soc2: [], cis: [] },
+      complianceGaps: { owasp: [], cis: [] },
       roadmap: { thirtyDays: [], sixtyDays: [], ninetyDays: [] },
     });
     assert.ok(md.includes('Executive narrative not available') || md.includes('not available'));
@@ -462,7 +453,7 @@ describe('generateCisoReport', () => {
       askClaude: async () => 'n',
     });
     assert.ok(result.sections.includes('owasp'));
-    assert.ok(result.sections.includes('soc2'));
+    assert.ok(!result.sections.includes('soc2'));
     assert.ok(result.sections.includes('cis'));
     assert.ok(result.sections.includes('roadmap'));
   });
@@ -485,12 +476,6 @@ describe('generateCisoReport', () => {
     assert.ok(OWASP_MAPPING.dependencies);
   });
 
-  it('SOC2_MAPPING covers key controls', () => {
-    assert.ok(SOC2_MAPPING.secrets);
-    assert.ok(SOC2_MAPPING.ciSecurity);
-    assert.ok(SOC2_MAPPING.logPii);
-  });
-
   it('CIS_MAPPING covers known modules', () => {
     assert.ok(CIS_MAPPING.secrets);
     assert.ok(CIS_MAPPING.webHeaders);
@@ -510,7 +495,7 @@ const {
 } = require('../website/app/lib/ciso-report-generator');
 
 describe('generateCisoReport — Nuclear wiring', () => {
-  it('output includes OWASP / SOC2 / CIS / 30-60-90 sections in the markdown', async () => {
+  it('output includes OWASP / CIS / 30-60-90 sections and no SOC 2 in the markdown', async () => {
     const result = await generateCisoReport({
       findings: SAMPLE_FINDINGS,
       hostName: 'wiring.test',
@@ -518,8 +503,10 @@ describe('generateCisoReport — Nuclear wiring', () => {
     });
     // OWASP section
     assert.match(result.markdown, /OWASP Top 10/i);
-    // SOC2 section
-    assert.match(result.markdown, /SOC2 Trust Service Criteria/i);
+    // No SOC 2 anywhere — report, HTML or summary (Craig 2026-10-01)
+    assert.doesNotMatch(result.markdown, /SOC ?2/i);
+    assert.doesNotMatch(result.html, /SOC ?2/i);
+    assert.doesNotMatch(result.summary, /SOC ?2/i);
     // CIS section
     assert.match(result.markdown, /CIS Controls v8/i);
     // 30/60/90 roadmap (header + each sprint)
@@ -538,7 +525,6 @@ describe('generateCisoReport — Nuclear wiring', () => {
     assert.ok(typeof result.markdown === 'string');
     assert.ok(result.markdown.length > 100);
     assert.equal(result.complianceGaps.owasp.length, 0);
-    assert.equal(result.complianceGaps.soc2.length, 0);
     assert.equal(result.complianceGaps.cis.length, 0);
     // Roadmap should report "no critical/high" rather than crash.
     assert.match(result.markdown, /No critical or high findings/i);
@@ -654,7 +640,6 @@ describe('generateCisoReport — Nuclear wiring', () => {
     // Even with no explicit mapping, the fallback (A04 / CC8.1 / 16)
     // ensures the findings appear in framework tables.
     assert.ok(gaps.owasp.length > 0, 'unknown modules should fall through to fallback OWASP');
-    assert.ok(gaps.soc2.length > 0);
     assert.ok(gaps.cis.length > 0);
   });
 

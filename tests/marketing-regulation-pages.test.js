@@ -31,7 +31,11 @@ const INDEX_PAGE = path.join(ROOT, "website/app/regulation/page.tsx");
 const SITEMAP = path.join(ROOT, "website/app/sitemap.ts");
 const MODULES_DATA = path.join(ROOT, "website/app/components/howitworks/modules-data.ts");
 
-const REQUIRED_SLUGS = ["gdpr", "hipaa", "soc2", "ccpa", "pci-dss", "iso27001"];
+// No "soc2" (Craig, 2026-10-01): a SOC 2 compliance scan is a separate future
+// product, not built or sold — the page is gone and /regulation/soc2
+// redirects permanently to /regulation (website/next.config.ts).
+const REQUIRED_SLUGS = ["gdpr", "hipaa", "ccpa", "pci-dss", "iso27001"];
+const NEXT_CONFIG = path.join(ROOT, "website/next.config.ts");
 
 function readSrc(p) {
   return fs.readFileSync(p, "utf8");
@@ -109,9 +113,9 @@ test("regulation catalog: defines Regulation type with all required fields", () 
   }
 });
 
-test("regulation catalog: contains at least 6 entries", () => {
+test("regulation catalog: contains at least 5 entries", () => {
   const slugs = extractSlugs(readSrc(CATALOG));
-  assert.ok(slugs.length >= 6, `expected ≥6 slug entries, got ${slugs.length}`);
+  assert.ok(slugs.length >= 5, `expected ≥5 slug entries, got ${slugs.length}`);
 });
 
 test("regulation catalog: all slugs are URL-safe (lowercase / digits / hyphens)", () => {
@@ -121,7 +125,21 @@ test("regulation catalog: all slugs are URL-safe (lowercase / digits / hyphens)"
   }
 });
 
-test("regulation catalog: contains all 6 required slugs", () => {
+test("regulation catalog: has no SOC 2 entry, and /regulation/soc2 redirects permanently to /regulation", () => {
+  const src = readSrc(CATALOG);
+  assert.ok(!extractSlugs(src).includes("soc2"), "soc2 must not be a regulation page — SOC 2 is a future product");
+  assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\//g, ""), /SOC ?2/i, "catalog entries must not mention SOC 2");
+  const idx = readSrc(INDEX_PAGE);
+  assert.doesNotMatch(idx, /SOC ?2/i, "regulation index title/description must not mention SOC 2");
+  const cfg = readSrc(NEXT_CONFIG);
+  assert.match(
+    cfg,
+    /\{\s*source:\s*"\/regulation\/soc2",\s*destination:\s*"\/regulation",\s*permanent:\s*true\s*\}/,
+    "next.config.ts must permanently redirect /regulation/soc2 to /regulation",
+  );
+});
+
+test("regulation catalog: contains all 5 required slugs", () => {
   const slugs = extractSlugs(readSrc(CATALOG));
   for (const req of REQUIRED_SLUGS) {
     assert.ok(slugs.includes(req), `required slug "${req}" missing from catalog`);
@@ -130,7 +148,7 @@ test("regulation catalog: contains all 6 required slugs", () => {
 
 test("regulation catalog: each entry has topThreeModules with exactly 3 names", () => {
   const triples = extractTopThreeModules(readSrc(CATALOG));
-  assert.ok(triples.length >= 6, `expected ≥6 topThreeModules blocks, got ${triples.length}`);
+  assert.ok(triples.length >= 5, `expected ≥5 topThreeModules blocks, got ${triples.length}`);
   for (const t of triples) {
     assert.equal(t.length, 3, `expected exactly 3 modules per regulation, got ${t.length}: ${t.join(", ")}`);
   }
@@ -160,7 +178,7 @@ test("regulation catalog: every entry has a non-empty fineRange string", () => {
     assert.ok(m[1].length >= 10, `fineRange too short: "${m[1]}"`);
     count++;
   }
-  assert.ok(count >= 6, `expected ≥6 fineRange entries, got ${count}`);
+  assert.ok(count >= 5, `expected ≥5 fineRange entries, got ${count}`);
 });
 
 test("regulation catalog: every entry has an authoritativeUrl pointing to https://", () => {
@@ -278,7 +296,7 @@ test("regulation index page: file exists", () => {
   assert.ok(fs.existsSync(INDEX_PAGE), `expected ${INDEX_PAGE}`);
 });
 
-test("regulation index page: lists all 6 regulations by mapping REGULATIONS", () => {
+test("regulation index page: lists all 5 regulations by mapping REGULATIONS", () => {
   const src = readSrc(INDEX_PAGE);
   assert.match(src, /REGULATIONS\.map/);
 });

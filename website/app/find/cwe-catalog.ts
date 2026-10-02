@@ -123,7 +123,7 @@ export const CWE_TOP_25: CweEntry[] = [
     shortDesc: "An endpoint enforces authentication but not authorisation — any logged-in user can access any other user's data.",
     modules: [],
     example: "app.get('/api/users/:id/orders', authMiddleware, async (req, res) => { res.json(await db.query('SELECT * FROM orders WHERE user_id = $1', [req.params.id])) }) — any logged-in user can read any user's orders.",
-    remediation: "On every endpoint that returns user-owned data, compare req.user.id to the requested record's owner. Test with two real accounts. GateTest's authBypass module catches routes with no authentication at all (CWE-306); an object-level authorisation gap like this one passes a static rule because the auth middleware is present, so the live IDOR probe (Pen Test tier, with your authorisation) is the check that reaches it.",
+    remediation: "On every endpoint that returns user-owned data, compare req.user.id to the requested record's owner. Test with two real accounts. GateTest's authBypass module catches routes with no authentication at all (CWE-306); an object-level authorisation gap like this one passes a static rule because the auth middleware is present, so no GateTest scan reaches it today — test it with the two-account check above.",
   },
   {
     rank: 12, id: 476, name: "NULL Pointer Dereference",

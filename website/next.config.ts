@@ -105,6 +105,11 @@ const nextConfig: NextConfig = {
       // permanent redirect rather than deleted outright — the link was
       // shared and bookmarked during the review period.
       { source: "/preview", destination: "/", permanent: true },
+      // /regulation/soc2 sold a SOC 2 readiness angle GateTest does not
+      // provide: a SOC 2 compliance scan is a separate future product, not
+      // built or sold (Craig, 2026-10-01). The page was indexed, so it
+      // redirects permanently to the regulation index instead of 404ing.
+      { source: "/regulation/soc2", destination: "/regulation", permanent: true },
       ...GUESSED_URLS,
       ...SIGNUP_URLS,
       ...REDIRECT_ONLY_ROUTES,

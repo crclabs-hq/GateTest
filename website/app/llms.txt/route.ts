@@ -103,7 +103,7 @@ function buildLlmsTxt(): string {
   lines.push("## Vulnerability & compliance references");
   lines.push("");
   lines.push(`- [CWE Top 25 — detection & fixes](${BASE}/find): ${cweCount} pages mapping each weakness to GateTest coverage`);
-  lines.push(`- [Compliance regimes](${BASE}/regulation): ${regCount} pages (GDPR, HIPAA, SOC 2, and more) framed for what GateTest checks`);
+  lines.push(`- [Compliance regimes](${BASE}/regulation): ${regCount} pages (GDPR, HIPAA, PCI DSS, and more) framed for what GateTest checks`);
   lines.push("");
 
   lines.push("## Optional");

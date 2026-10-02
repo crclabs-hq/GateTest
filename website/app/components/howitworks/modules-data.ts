@@ -20,7 +20,8 @@ export type ModuleCategory = {
   title: string;
   blurb: string;
   modules: ModuleDef[];
-  /** Set when a category is publicly listed but not yet purchasable/live. */
+  /** Set when a category is registered in the engine but NOT available in any
+   *  scan or tier. Every renderer badges it "Not available". */
   comingSoon?: { reason: string };
 };
 
@@ -214,9 +215,9 @@ export const MODULE_CATEGORIES: ModuleCategory[] = [
   },
   {
     id: "pen-test",
-    title: "Live pen-test probes",
-    blurb: "Active probes against your running site. Pen Test tier only — requires explicit written authorization for the target.",
-    comingSoon: { reason: "Pending attorney review before this tier ships live." },
+    title: "Live attack probes",
+    blurb: "Active probes against a running site. Not available — reserved for a future penetration-testing product. No GateTest scan or tier runs these probes today.",
+    comingSoon: { reason: "Not available — reserved for a future penetration-testing product; no scan runs these probes." },
     modules: [
       { name: "liveSqlInjection", description: "Live SQL-injection probe — error-based, boolean, and timing payloads against discovered endpoints.", example: "Timing payload on /api/search?q= delayed response 5.1s — injectable" },
       { name: "liveXss", description: "Live reflected-XSS probe — reflection detection on discovered endpoints.", example: "Payload reflected unencoded in /search results page" },

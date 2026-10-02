@@ -4,8 +4,8 @@
  * "All 122 modules" means nothing to a buyer. This groups them into human
  * categories with real counts, pulled straight from the module registry
  * (MODULE_CATEGORIES) so the numbers can NEVER drift from the engine. The
- * coming-soon Live-Security category is flagged, consistent with the pentest
- * waitlist section and honest about what's live today.
+ * live-attack-probe category is flagged "Not available": those probes belong
+ * to a future penetration-testing product and no scan runs them today.
  */
 
 import Link from "next/link";
@@ -75,7 +75,7 @@ export default function HomeModuleBreakdown() {
                 </div>
                 {cat.comingSoon ? (
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-violet-500/10 text-violet-500 border-violet-500/25">
-                    Soon
+                    Not available
                   </span>
                 ) : (
                   <span className="text-sm font-bold text-accent tabular-nums">

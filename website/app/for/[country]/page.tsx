@@ -312,7 +312,7 @@ export default async function CountryPage({ params }: PageParams) {
             Honest limitations
           </h3>
           <p className="text-foreground-secondary leading-relaxed text-sm mb-3">
-            GateTest is a code-quality + security scanner — not a SOC 2 / HIPAA / ISO auditor. We catch the technical findings auditors look for, but the audit itself needs a qualified human assessor.
+            GateTest is a code-quality + security scanner — not a compliance auditor, and it offers no SOC 2 compliance scan and no penetration testing. It reports code-level findings; any SOC 2, HIPAA or ISO audit needs a qualified human assessor.
           </p>
           <ul className="space-y-2 text-foreground-secondary text-sm leading-relaxed">
             {data.countryCaveats.map((c) => (
