@@ -12,6 +12,31 @@ const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 
+/**
+ * True when a (neutralised: strings/comments blanked) line is exactly one
+ * `console.log|debug|info(...)` call or `debugger` statement whose parens
+ * open and close on this line — the only lines the deterministic fixer may
+ * delete without changing what the program does.
+ */
+function isRemovableStatementLine(neutralisedLine) {
+  const t = String(neutralisedLine || '').trim();
+  if (/^debugger\s*;?$/.test(t)) return true;
+  if (!/^console\.(?:log|debug|info)\s*\(/.test(t) || !/\)\s*;?$/.test(t)) return false;
+  let depth = 0;
+  const body = t.replace(/;\s*$/, '');
+  for (let i = 0; i < body.length; i++) {
+    if (body[i] === '(') depth++;
+    else if (body[i] === ')') {
+      depth--;
+      // Closing the console call before the end means more code follows it
+      // on this line (`console.log(x) || run()`), which must stay.
+      if (depth === 0 && i !== body.length - 1) return false;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0;
+}
+
 class CodeQualityModule extends BaseModule {
   constructor() {
     super('codeQuality', 'Code Quality Analysis');
@@ -542,7 +567,15 @@ class CodeQualityModule extends BaseModule {
             ...(severity ? { severity } : {}),
             message: `${message} at line ${i + 1}`,
             suggestion: 'Remove or replace this pattern before committing',
-            autoFix: () => this._removeLineFromFile(absPath, lineNum, relPath, message),
+            // Only a line that is nothing but one console.log/debug/info
+            // statement or `debugger;` may be deleted. eval / new Function /
+            // innerHTML lines carry behaviour (audit 2026-10-02: --fix deleted
+            // `return eval(...)` and load() silently returned undefined), a
+            // TODO is information, and a multi-line console.log( would leave
+            // its arguments behind as a syntax error.
+            ...(isRemovableStatementLine(neutralised)
+              ? { autoFix: () => this._removeLineFromFile(absPath, lineNum, relPath, message) }
+              : {}),
           });
         }
       }
@@ -760,6 +793,14 @@ class CodeQualityModule extends BaseModule {
           description: `Skipped ${relPath}:${lineIndex + 1} — line is inside a string/comment`,
         };
       }
+      // The file may have changed since the finding; re-prove the line is a
+      // whole removable statement before deleting anything.
+      if (!isRemovableStatementLine(neutralisedLine)) {
+        return {
+          fixed: false,
+          description: `Skipped ${relPath}:${lineIndex + 1} — not a single removable statement; fix by hand`,
+        };
+      }
       lines.splice(lineIndex, 1);
       fs.writeFileSync(absPath, joinLines(lines, content), 'utf-8');
       return {
@@ -796,3 +837,4 @@ class CodeQualityModule extends BaseModule {
 }
 
 module.exports = CodeQualityModule;
+module.exports.isRemovableStatementLine = isRemovableStatementLine;
