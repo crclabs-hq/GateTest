@@ -1,0 +1,169 @@
+{
+  "generatedAt": "2026-10-02T09:26:43.879Z",
+  "minerInputs": {
+    "sessionFixCount": 203,
+    "fixAttemptCount": 0,
+    "mcpEventCount": 0
+  },
+  "proposalsTotal": 3,
+  "highConfidence": 2,
+  "review": 1,
+  "skipped": 0,
+  "proposals": [
+    {
+      "pattern": "fix(website): changelog page casts the gener",
+      "hits": 4,
+      "sampleShas": [
+        "c2d74c86440893b4ff25bd7a83ef1b9e24a5f81b",
+        "dccca5b4dac31a48fbc1f7c6fb28522293c35987",
+        "ed467cca174c3592544091fcd693799660d9a7b1",
+        "8cb7b5b02537128ba697668dcd0474f28f5aa07b"
+      ],
+      "sampleDiffs": [
+        {
+          "sha": "c2d74c86440893b4ff25bd7a83ef1b9e24a5f81b",
+          "files": [
+            "website/app/changelog/page.tsx"
+          ],
+          "added": 5,
+          "removed": 1
+        },
+        {
+          "sha": "dccca5b4dac31a48fbc1f7c6fb28522293c35987",
+          "files": [
+            "website/app/changelog/page.tsx"
+          ],
+          "added": 5,
+          "removed": 1
+        },
+        {
+          "sha": "ed467cca174c3592544091fcd693799660d9a7b1",
+          "files": [
+            "website/app/changelog/page.tsx"
+          ],
+          "added": 5,
+          "removed": 1
+        }
+      ],
+      "plausibilityScore": 1,
+      "verdict": "high-confidence",
+      "proposedRule": {
+        "name": "rule-fix-website-changelog-page-casts-the-gener",
+        "sourceCommits": [
+          "c2d74c86440893b4ff25bd7a83ef1b9e24a5f81b",
+          "dccca5b4dac31a48fbc1f7c6fb28522293c35987",
+          "ed467cca174c3592544091fcd693799660d9a7b1",
+          "8cb7b5b02537128ba697668dcd0474f28f5aa07b"
+        ],
+        "suggestedLocation": "website/app/lib/rule-based-fixer.js (TRANSFORMS list)",
+        "action": "transcribe the mechanical change observed across sample commits into a regex-based TRANSFORM"
+      }
+    },
+    {
+      "pattern": "fix(cli): one pre-scan line honours both",
+      "hits": 3,
+      "sampleShas": [
+        "2978aa435247184520eb4e46c8b292995bede2ac",
+        "6af34faa8209013d2d5e70f9b89d6ee74c06acbc",
+        "8540f2801e8628cc41ccb5cfaaeca67d57817d10"
+      ],
+      "sampleDiffs": [
+        {
+          "sha": "2978aa435247184520eb4e46c8b292995bede2ac",
+          "files": [
+            "bin/gatetest.js",
+            "src/core/scan-history.js",
+            "tests/time-to-verdict.test.js"
+          ],
+          "added": 13,
+          "removed": 5
+        },
+        {
+          "sha": "6af34faa8209013d2d5e70f9b89d6ee74c06acbc",
+          "files": [
+            "bin/gatetest.js",
+            "src/core/scan-history.js",
+            "tests/time-to-verdict.test.js"
+          ],
+          "added": 13,
+          "removed": 5
+        },
+        {
+          "sha": "8540f2801e8628cc41ccb5cfaaeca67d57817d10",
+          "files": [
+            "bin/gatetest.js",
+            "src/core/scan-history.js",
+            "tests/time-to-verdict.test.js"
+          ],
+          "added": 13,
+          "removed": 5
+        }
+      ],
+      "plausibilityScore": 1,
+      "verdict": "high-confidence",
+      "proposedRule": {
+        "name": "rule-fix-cli-one-pre-scan-line-honours-both",
+        "sourceCommits": [
+          "2978aa435247184520eb4e46c8b292995bede2ac",
+          "6af34faa8209013d2d5e70f9b89d6ee74c06acbc",
+          "8540f2801e8628cc41ccb5cfaaeca67d57817d10"
+        ],
+        "suggestedLocation": "website/app/lib/rule-based-fixer.js (TRANSFORMS list)",
+        "action": "transcribe the mechanical change observed across sample commits into a regex-based TRANSFORM"
+      }
+    },
+    {
+      "pattern": "fix(gitignore): env contract files stay in sco",
+      "hits": 3,
+      "sampleShas": [
+        "d47e3f842494cbc0c364dc5c00598d21b3444b55",
+        "f7d4237934df563191222dd5e1fbf25e74483fb0",
+        "c46e89a723ad5b07f1d0a3315e089aa9e958975e"
+      ],
+      "sampleDiffs": [
+        {
+          "sha": "d47e3f842494cbc0c364dc5c00598d21b3444b55",
+          "files": [
+            ".env.example",
+            "src/core/gitignore.js",
+            "tests/gitignore-env-contract-files.test.js"
+          ],
+          "added": 55,
+          "removed": 0
+        },
+        {
+          "sha": "f7d4237934df563191222dd5e1fbf25e74483fb0",
+          "files": [
+            ".env.example",
+            "src/core/gitignore.js",
+            "tests/gitignore-env-contract-files.test.js"
+          ],
+          "added": 55,
+          "removed": 0
+        },
+        {
+          "sha": "c46e89a723ad5b07f1d0a3315e089aa9e958975e",
+          "files": [
+            ".env.example",
+            "src/core/gitignore.js",
+            "tests/gitignore-env-contract-files.test.js"
+          ],
+          "added": 55,
+          "removed": 0
+        }
+      ],
+      "plausibilityScore": 0.619,
+      "verdict": "review",
+      "proposedRule": {
+        "name": "rule-fix-gitignore-env-contract-files-stay-in-sco",
+        "sourceCommits": [
+          "d47e3f842494cbc0c364dc5c00598d21b3444b55",
+          "f7d4237934df563191222dd5e1fbf25e74483fb0",
+          "c46e89a723ad5b07f1d0a3315e089aa9e958975e"
+        ],
+        "suggestedLocation": "website/app/lib/rule-based-fixer.js (TRANSFORMS list)",
+        "action": "transcribe the mechanical change observed across sample commits into a regex-based TRANSFORM"
+      }
+    }
+  ]
+}
