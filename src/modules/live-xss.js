@@ -6,8 +6,10 @@
  * execute payloads — we look for reflection. A payload echoed unencoded
  * in an HTML / attribute / JS context is a reflected XSS vulnerability.
  *
- * THIS MODULE WILL NOT RUN IN CUSTOMER SCANS. Pen Test tier only.
- * Requires authorization-gate consent before any payload is transmitted.
+ * THIS MODULE WILL NOT RUN IN CUSTOMER SCANS.
+ * Dormant — not run by any scan (registered, in no suite). Reserved for a
+ * future, separate penetration-testing product (Craig 2026-10-01: not sold
+ * today). Requires authorization-gate consent before any payload is sent.
  */
 
 'use strict';
@@ -38,7 +40,7 @@ class LiveXssModule extends BaseModule {
   constructor() {
     super(
       'liveXss',
-      'Live reflected-XSS probe — reflection detection on discovered endpoints (Pen Test tier — requires authorization)',
+      'Live reflected-XSS probe — reflection detection on discovered endpoints (dormant — not run by any scan; reserved for a future penetration-testing product)',
     );
   }
 

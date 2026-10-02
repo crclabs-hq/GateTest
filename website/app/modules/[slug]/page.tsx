@@ -95,11 +95,11 @@ export default async function ModulePage({ params }: PageParams) {
         },
         {
           q: `Can I buy a scan that includes ${pretty} today?`,
-          a: `Not yet — ${comingSoon.reason} It's registered in the engine and documented here so it's discoverable, but it isn't included in any purchasable tier yet.`,
+          a: `No. ${comingSoon.reason} It's registered in the engine and documented here, but it isn't included in any purchasable tier.`,
         },
         {
           q: `Which tiers include the ${pretty} module?`,
-          a: `None yet — this module is Coming Soon. ${comingSoon.reason}`,
+          a: `None. ${comingSoon.reason}`,
         },
       ]
     : [
@@ -170,14 +170,14 @@ export default async function ModulePage({ params }: PageParams) {
             <Link href="/modules" className="hover:text-foreground transition-colors">Modules</Link>
             <span aria-hidden="true">/</span>
             <Link href={`/modules#${mod.category.id}`} className="hover:text-foreground transition-colors">{mod.category.title}</Link>
-            {comingSoon && <span className="text-[var(--v2-warn)]">· Coming soon</span>}
+            {comingSoon && <span className="text-[var(--v2-warn)]">· Not available</span>}
           </>
         }
         title={pretty}
         lede={mod.description}
         actions={
           comingSoon ? (
-            <p className="text-sm text-[var(--v2-muted)] leading-relaxed">Not yet included in any purchasable tier. {comingSoon.reason}</p>
+            <p className="text-sm text-[var(--v2-muted)] leading-relaxed">Not included in any purchasable tier. {comingSoon.reason}</p>
           ) : (
             <p className="text-sm text-[var(--v2-muted)] leading-relaxed">
               One of {totalModules} modules in the GateTest scan suite. Catches the issue before it reaches code review, and on paid tiers opens a pull request with the fix already written.
@@ -214,11 +214,11 @@ export default async function ModulePage({ params }: PageParams) {
             <ul className="space-y-3 text-[var(--v2-muted)] leading-relaxed">
               <li className="flex items-start gap-2">
                 <span className="text-[var(--v2-warn)] mt-1" aria-hidden="true">&#9679;</span>
-                <span><strong className="text-[var(--v2-fg)]">Not yet purchasable.</strong> {comingSoon.reason} It&apos;s registered in the engine today so it&apos;s discoverable, but no tier includes it yet.</span>
+                <span><strong className="text-[var(--v2-fg)]">Not purchasable.</strong> {comingSoon.reason} It&apos;s registered in the engine, but no tier includes it.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-[var(--v2-warn)] mt-1" aria-hidden="true">&#9679;</span>
-                <span><strong className="text-[var(--v2-fg)]">Requires explicit authorization when it ships.</strong> Live probes only ever run against a target you&apos;ve proven you own — a three-layer consent check gates every run.</span>
+                <span><strong className="text-[var(--v2-fg)]">Would require explicit authorization.</strong> If the future product ships, live probes will only run against a target you&apos;ve proven you own.</span>
               </li>
             </ul>
           ) : (
@@ -250,14 +250,14 @@ export default async function ModulePage({ params }: PageParams) {
         {/* CTA */}
         {comingSoon ? (
           <section className="mb-12 v2-callout text-center py-8" data-tone="warn">
-            <h2 className={`${h2} mb-3`}>{pretty} is coming soon</h2>
-            <p className="text-[var(--v2-muted)] mb-6">{comingSoon.reason} Want early access when it ships?</p>
+            <h2 className={`${h2} mb-3`}>{pretty} is not available</h2>
+            <p className="text-[var(--v2-muted)] mb-6">{comingSoon.reason} Want to hear if the penetration-testing product launches?</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
-                href={`mailto:support@gatetest.io?subject=${encodeURIComponent(`Early access: ${pretty}`)}`}
+                href={`mailto:support@gatetest.io?subject=${encodeURIComponent(`Notify me: ${pretty}`)}`}
                 className="v2-btn v2-btn-primary"
               >
-                Request early access
+                Email me if it launches
               </a>
               <Link href="/modules" className="v2-btn">
                 See all {totalModules} modules

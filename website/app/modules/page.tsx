@@ -96,7 +96,7 @@ export default function ModulesIndexPage() {
                   <h2 className="v2-h2 !text-2xl sm:!text-3xl">{cat.title}</h2>
                   {cat.comingSoon && (
                     <span className="v2-kicker !text-[10px] uppercase px-2 py-0.5 rounded-full border border-[var(--v2-warn)]/40 text-[var(--v2-warn)]">
-                      Coming soon
+                      Not available
                     </span>
                   )}
                 </div>
@@ -114,7 +114,7 @@ export default function ModulesIndexPage() {
                         <div className="text-[var(--v2-fg)] font-semibold">{prettify(mod.name)}</div>
                         {cat.comingSoon && (
                           <span className="v2-kicker !text-[9px] uppercase px-1.5 py-0.5 rounded-full border border-[var(--v2-warn)]/40 text-[var(--v2-warn)]">
-                            Soon
+                            Not available
                           </span>
                         )}
                       </div>

@@ -15,7 +15,7 @@
  *
  *   1. Process-level switch: env var GATETEST_PENTEST_ARMED === '1'
  *      Operator-side opt-in. Set by the worker process at boot when running
- *      the pen-test tier. Absent means the engine is in vulnerability-scan
+ *      the (future, not yet sold) penetration-testing product. Absent means the engine is in vulnerability-scan
  *      mode and live probes are physically inert.
  *
  *   2. Per-target authorization record: passed in `consent` argument with:

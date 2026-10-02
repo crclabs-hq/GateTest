@@ -11,7 +11,9 @@
  * BOTH (a) status 200 AND (b) response body looks like a record (JSON
  * object / array, OR HTML containing typical record-page markers).
  *
- * Pen Test tier — requires authorization-gate consent.
+ * Dormant — not run by any scan (registered, in no suite). Reserved for a
+ * future, separate penetration-testing product (Craig 2026-10-01: not sold
+ * today). Requires authorization-gate consent before any payload is sent.
  */
 
 'use strict';
@@ -39,7 +41,7 @@ class LiveIdorModule extends BaseModule {
   constructor() {
     super(
       'liveIdor',
-      'Live IDOR probe — tests if other users\' object IDs are reachable without authorization (Pen Test tier — requires authorization)',
+      'Live IDOR probe — tests if other users\' object IDs are reachable without authorization (dormant — not run by any scan; reserved for a future penetration-testing product)',
     );
   }
 

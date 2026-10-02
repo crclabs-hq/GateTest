@@ -110,8 +110,9 @@ const BUILT_IN_MODULES = {
   // P2 — code quality (AI-specific)
   aiHallucination: '../modules/ai-hallucination.js',
   claudeCompliance: '../modules/claude-compliance.js',
-  // Pen Test tier — dormant. Registered so they're discoverable + testable,
-  // NOT in any tier suite. They refuse to send a payload unless the
+  // Dormant live probes — reserved for a future, separate penetration-testing
+  // product (Craig 2026-10-01: not sold today; there is no Pen Test tier).
+  // Registered so they're discoverable + testable, NOT in any suite. They refuse to send a payload unless the
   // authorization-gate grants — see src/core/authorization-gate.js.
   // Will ship customer-facing once the legal layer (lawyer-drafted ToS +
   // RoE template + cyber insurance + DNS-TXT verification) is built.

@@ -7,14 +7,14 @@ import Section from "../components/site/Section";
 import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
-  title: "Compliance regulations — what GateTest catches for GDPR, HIPAA, SOC 2, CCPA, PCI DSS, ISO 27001",
+  title: "Compliance regulations — what GateTest catches for GDPR, HIPAA, CCPA, PCI DSS, ISO 27001",
   description:
     "Browse the technical findings GateTest catches under the world's major compliance regimes. One scan covers code-level evidence auditors sample.",
   alternates: { canonical: "/regulation" },
   openGraph: {
     title: "Compliance regulations — what GateTest catches",
     description:
-      "Technical findings GateTest catches under GDPR, HIPAA, SOC 2, CCPA, PCI DSS, and ISO 27001.",
+      "Technical findings GateTest catches under GDPR, HIPAA, CCPA, PCI DSS, and ISO 27001.",
     url: "/regulation",
     siteName: "GateTest",
     type: "website",

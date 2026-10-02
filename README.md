@@ -502,8 +502,7 @@ gatetest --suite full --compliance
 ```
 
 Writes `.gatetest/reports/gatetest-compliance-<timestamp>.json` and `.md`: every
-finding filed under **OWASP Top 10 2021**, **SOC 2 Trust Services Criteria** and
-**CIS Controls v8**, control by control, with the raw results behind the tables
+finding filed under **OWASP Top 10 2021** and **CIS Controls v8**, control by control, with the raw results behind the tables
 and the same provenance + signature as the JSON report, so `gatetest verify-report`
 proves the pack was not edited after the scan. Three states, never two: a control is
 **PASS** only when a module mapped to it ran and found nothing; **NOT CHECKED**
@@ -605,7 +604,7 @@ Scan tiers are one-time payments via Stripe at checkout — no auto-renew. Conti
 | **Quick Scan**    | $29     | 4 modules — syntax, linting, secrets, code quality. Fastest path to a first signal. Scan-only — no auto-fix.                                       |
 | **Full Scan**     | $99     | The full engine suite (88 modules; mutation + chaos run via the GitHub Action or a nightly instead — they need a CI runner to execute your test suite, and mutation re-runs it once per mutant). Every scan prints what it deferred and where that work runs. SARIF + JUnit reports via the CLI / GitHub Action. Scan-only — auto-fix ships at the Scan + Fix tier. |
 | **Scan + Fix**    | $199    | Everything in Full, plus a second-AI pair-review critique on every fix and an architecture-shape design-observations report.                   |
-| **Forensic Scan** | $399    | Everything in Scan + Fix, plus real AI diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
+| **Forensic Scan** | $399    | Everything in Scan + Fix, plus real AI diagnosis on every finding, cross-finding attack-chain correlation, board-ready CISO report (findings mapped to OWASP Top 10 and CIS Controls v8, with a 30/60/90-day remediation plan), and a CTO-readable executive summary. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (`mutation: true` / `chaos: true`) — they need a CI runner to execute your test suite and a headless browser, so they ship with the Action rather than the website-only scan. |
 | **Continuous**    | $49/mo  | Scan every push via the GitHub App. Unlimited deterministic push scans plus a monthly AI-review allowance. Fix PRs are a per-scan upsell.    |
 | **MCP**           | $29/mo  | The **hosted** remote MCP endpoint — use GateTest from web/mobile AI clients or locked-down machines, plus hosted scan history (`gtmcp_` key delivered by email after checkout). The **local** MCP server (`npx @gatetest/mcp-server`) is 100% free — every tool runs on your machine with your keys. |
 

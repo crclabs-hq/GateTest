@@ -131,8 +131,9 @@ const { runPairReview, renderReviewComment } = require("@/app/lib/pair-review") 
 // CISO report generator — Forensic-tier ($399) deliverable. Wires the
 // existing helper into the Nuclear branch of the fix route so paying
 // customers actually receive the board-ready report the marketing
-// promises (OWASP Top 10, SOC2 TSC, CIS Controls v8, 30/60/90-day
-// remediation roadmap). Report is attached as a markdown file inside
+// promises (OWASP Top 10, CIS Controls v8, 30/60/90-day remediation
+// roadmap; no SOC 2 mapping — a separate future product, Craig 2026-10-01).
+// Report is attached as a markdown file inside
 // the auto-fix PR at gatetest-reports/ciso-board-report-<date>.md.
 // Failure is non-blocking — fixes ship even if the report errors.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -148,7 +149,7 @@ const { generateCisoReport, cisoReportPath } = require("@/app/lib/ciso-report-ge
     markdown: string;
     html: string;
     summary: string;
-    complianceGaps: { owasp: Array<{ control: string; title: string; findingCount: number }>; soc2: Array<{ control: string; title: string; findingCount: number }>; cis: Array<{ control: string; title: string; findingCount: number }> };
+    complianceGaps: { owasp: Array<{ control: string; title: string; findingCount: number }>; cis: Array<{ control: string; title: string; findingCount: number }> };
     sections: string[];
     riskLevel: string;
     counts: { Critical: number; High: number; Medium: number; Low: number };
@@ -199,7 +200,7 @@ const { composePrBody } = require("@/app/lib/pr-composer") as {
     cisoReport?: {
       path?: string;
       riskLevel?: string;
-      complianceGaps?: { owasp: unknown[]; soc2: unknown[]; cis: unknown[] };
+      complianceGaps?: { owasp: unknown[]; cis: unknown[] };
       counts?: { Critical: number; High: number; Medium: number; Low: number };
       failed?: boolean;
     };
@@ -2363,7 +2364,7 @@ export async function POST(req: NextRequest) {
     let cisoReportDescriptor: {
       path?: string;
       riskLevel?: string;
-      complianceGaps?: { owasp: unknown[]; soc2: unknown[]; cis: unknown[] };
+      complianceGaps?: { owasp: unknown[]; cis: unknown[] };
       counts?: { Critical: number; High: number; Medium: number; Low: number };
       failed?: boolean;
     } | undefined;

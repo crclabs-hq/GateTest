@@ -53,7 +53,7 @@ export const TIERS: Record<string, ScanTier> = {
     priceInCents: 39900,
     modules: "all-applicable+forensic-stack",
     description:
-      "Everything in Scan + Fix, PLUS: real AI diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
+      "Everything in Scan + Fix, PLUS: real AI diagnosis on every finding (no templated snippets), cross-finding attack-chain correlation (textbook session-forgery / supply-chain vectors no per-finding scanner can see), board-ready CISO report (findings mapped to OWASP Top 10 and CIS Controls v8, with a 30/60/90-day remediation plan), and a CTO-readable executive summary report. Mutation testing and chaos / fuzz pass are also available via the GitHub Action (mutation: true / chaos: true) — they need a CI runner so they ship wherever your CI runs.",
   },
   // URL-scan full-report tiers — the /web and /wp scanners' paywall unlock.
   // Prices match what those pages have advertised since launch ($29 / $19);
