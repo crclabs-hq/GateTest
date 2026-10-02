@@ -1,8 +1,8 @@
 'use strict';
 /**
- * Compliance evidence — the scan's findings filed under OWASP Top 10 2021,
- * SOC 2 Trust Services Criteria and CIS Controls v8, control by control
- * (the Fifty, move 46).
+ * Compliance evidence — the scan's findings filed under OWASP Top 10 2021
+ * and CIS Controls v8, control by control (the Fifty, move 46). SOC 2 is
+ * deliberately NOT emitted — see FRAMEWORKS below.
  *
  * Three-state per control, never two (Doctrine §1): a control is `pass` only
  * when a module mapped to it RAN and found nothing; `fail` when a mapped
@@ -22,13 +22,13 @@
 
 const {
   getComplianceMapping, hasExplicitMapping, listMappedModules,
-  OWASP_TOP10, SOC2_CRITERIA, CIS_CONTROLS,
+  OWASP_TOP10, CIS_CONTROLS,
 } = require('./compliance-mappings');
 const { isBlockingFinding } = require('./confidence');
 
 const FRAMEWORKS = Object.freeze([
   { key: 'owasp', name: 'OWASP Top 10 2021', controls: OWASP_TOP10 },
-  { key: 'soc2', name: 'SOC 2 Trust Services Criteria', controls: SOC2_CRITERIA },
+  // SOC 2 skipped on purpose (Craig 2026-10-01): SOC 2 compliance is a future, separate product, not sold today — the soc2 mapping column is kept for it.
   { key: 'cis', name: 'CIS Controls v8', controls: CIS_CONTROLS },
 ]);
 

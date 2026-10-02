@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29",
+  "generatedAt": "2026-10-01",
   "source": "scripts/generate-mcp-remote-modules.js — generated from src/core/registry.js, do not hand-edit",
   "count": 122,
   "modules": [
@@ -409,23 +409,23 @@
     },
     {
       "name": "liveSqlInjection",
-      "description": "Live SQL-injection probe — error-based, boolean, timing payloads against discovered endpoints (Pen Test tier — requires authorization)"
+      "description": "Live SQL-injection probe — error-based, boolean, timing payloads against discovered endpoints (dormant — not run by any scan; reserved for a future penetration-testing product)"
     },
     {
       "name": "liveXss",
-      "description": "Live reflected-XSS probe — reflection detection on discovered endpoints (Pen Test tier — requires authorization)"
+      "description": "Live reflected-XSS probe — reflection detection on discovered endpoints (dormant — not run by any scan; reserved for a future penetration-testing product)"
     },
     {
       "name": "livePathTraversal",
-      "description": "Live path-traversal probe — /etc/passwd / win.ini read detection (Pen Test tier — requires authorization)"
+      "description": "Live path-traversal probe — /etc/passwd / win.ini read detection (dormant — not run by any scan; reserved for a future penetration-testing product)"
     },
     {
       "name": "liveAuthBypass",
-      "description": "Live auth-bypass probe — tests if injected headers grant unauthenticated access (Pen Test tier — requires authorization)"
+      "description": "Live auth-bypass probe — tests if injected headers grant unauthenticated access (dormant — not run by any scan; reserved for a future penetration-testing product)"
     },
     {
       "name": "liveIdor",
-      "description": "Live IDOR probe — tests if other users' object IDs are reachable without authorization (Pen Test tier — requires authorization)"
+      "description": "Live IDOR probe — tests if other users' object IDs are reachable without authorization (dormant — not run by any scan; reserved for a future penetration-testing product)"
     },
     {
       "name": "monorepoConstraints",

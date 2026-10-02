@@ -25,7 +25,7 @@ export default function ModuleGrid() {
               </span>
               {category.comingSoon && (
                 <span className="ml-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-700 font-mono align-middle">
-                  Coming soon
+                  Not available
                 </span>
               )}
             </h3>

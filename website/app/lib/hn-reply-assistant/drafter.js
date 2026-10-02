@@ -51,7 +51,7 @@ function composeSystemPrompt({ voiceExamples = [], productContext = {} } = {}) {
       "We don't beat CodeQL on deep multi-hop taint analysis. We win on breadth, speed, and the auto-fix.",
       "Mutation testing + chaos pass ship via GitHub Action only, not the website Forensic scan.",
       "We don't claim 'most reliable scanner' yet. We've built the continuous reliability framework; the track record starts now.",
-      "Pen test tier is parked for attorney review on RoE/ToS/insurance.",
+      "Penetration testing and SOC 2 compliance scanning are separate future products — not built, not sold today.",
     ],
   };
 

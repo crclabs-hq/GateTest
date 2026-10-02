@@ -516,4 +516,32 @@ describe('ComplianceReporter — the evidence pack is signed and verifiable (the
     assert.match(md, /Signed \(HMAC-SHA256/);
     assert.match(md, /NOT CHECKED/, 'one module cannot have checked the other nine categories');
   });
+
+  it('the console line and the written pack name OWASP and CIS, never SOC 2 (Craig 2026-10-01)', async () => {
+    const config = new GateTestConfig(tmpDir);
+    const runner = new GateTestRunner(config);
+    const reporter = new ComplianceReporter(runner, config);
+    runner.register('ssrf', {
+      async run(result) {
+        result.addCheck('ssrf-user-input-to-fetch', false, { severity: 'error', file: 'src/api.ts', line: 12, message: 'User input handed to fetch()' });
+      },
+    });
+    const logged = [];
+    const orig = console.log;
+    console.log = (...a) => { logged.push(a.join(' ')); };
+    try { await runner.run(['ssrf']); } finally { console.log = orig; }
+
+    const line = logged.find((l) => /OWASP .* pass \//.test(l));
+    assert.ok(line, `compliance console line printed: ${JSON.stringify(logged)}`);
+    assert.match(line, /OWASP \d+ pass \/ \d+ fail \/ \d+ warn \/ \d+ not checked · CIS \d+ pass/);
+    assert.doesNotMatch(line, /SOC ?2/i);
+
+    const md = fs.readFileSync(reporter.lastPaths.markdown, 'utf-8');
+    assert.match(md, /## OWASP Top 10 2021/);
+    assert.match(md, /## CIS Controls v8/);
+    assert.doesNotMatch(md, /SOC ?2|Trust Services/i);
+    const json = fs.readFileSync(reporter.lastPaths.json, 'utf-8');
+    assert.deepStrictEqual(Object.keys(JSON.parse(json).frameworks).sort(), ['cis', 'owasp']);
+    assert.doesNotMatch(json.replace(/"results":[\s\S]*$/, ''), /SOC ?2|Trust Services/i);
+  });
 });

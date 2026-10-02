@@ -73,9 +73,9 @@ export const GLOSSARY: GlossaryEntry[] = [
       "The cost is that DAST needs something running and reachable, it lands later in the lifecycle, and a finding tells you the symptom (an exposed endpoint) without always pointing at the line of code responsible. Good pipelines run DAST against staging on every deploy and feed the results back to the team that owns the code.",
     ],
     gatetest:
-      "GateTest's live-scan modules are DAST: the headless-browser runtime-error capture, the live crawler and API health probe, and the live auth-bypass / IDOR / SQL-injection / XSS / path-traversal probes (the pen-test set, which needs your explicit authorisation). They run where a browser and a target URL are available (the GitHub Action, a worker, or the URL-scan flow) and complement the static modules — the header, TLS and cookie scanners read your config and source rather than probing the deployed site.",
+      "GateTest's live-scan modules are DAST: the headless-browser runtime-error capture, the visual-regression screenshot diff, the live crawler, and the API health probe. They observe how the deployed site responds; they do not send attack payloads — GateTest does not run penetration tests. They run where a browser and a target URL are available (the GitHub Action, a worker, or the URL-scan flow) and complement the static modules — the header, TLS and cookie scanners read your config and source rather than probing the deployed site.",
     related: ["sast", "quality-gate", "shift-left", "secret-scanning"],
-    modules: ["runtimeErrors", "liveCrawler", "apiHealth", "liveAuthBypass", "liveXss"],
+    modules: ["runtimeErrors", "liveCrawler", "apiHealth", "visualRegression"],
     faqs: [
       {
         q: "When should I run DAST instead of SAST?",

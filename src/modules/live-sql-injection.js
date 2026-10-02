@@ -10,12 +10,12 @@
  *   - Timing: response time stretches by the requested delay
  *
  * THIS MODULE WILL NOT RUN IN CUSTOMER SCANS. It is wired into the registry
- * but NOT registered in any tier suite. It requires authorize() from
+ * but NOT registered in any suite. It requires authorize() from
  * authorization-gate to grant before a single payload is transmitted.
  *
- * Tier: Pen Test ($999) — pending compliance build (lawyer + RoE + DNS-TXT
- * verification + insurance). Until then, this module exists as the engine
- * but is not customer-facing.
+ * Dormant — reserved for a future, separate penetration-testing product
+ * (Craig 2026-10-01: not sold today), pending its legal build (lawyer + RoE +
+ * DNS-TXT verification + insurance). Not customer-facing.
  */
 
 'use strict';
@@ -64,7 +64,7 @@ class LiveSqlInjectionModule extends BaseModule {
   constructor() {
     super(
       'liveSqlInjection',
-      'Live SQL-injection probe — error-based, boolean, timing payloads against discovered endpoints (Pen Test tier — requires authorization)',
+      'Live SQL-injection probe — error-based, boolean, timing payloads against discovered endpoints (dormant — not run by any scan; reserved for a future penetration-testing product)',
     );
   }
 

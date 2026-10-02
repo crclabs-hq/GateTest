@@ -5,7 +5,9 @@
  * canonical /etc/passwd or Windows win.ini content appears in the response.
  * Only attempts to READ — never sends destructive paths.
  *
- * Pen Test tier — requires authorization-gate consent.
+ * Dormant — not run by any scan (registered, in no suite). Reserved for a
+ * future, separate penetration-testing product (Craig 2026-10-01: not sold
+ * today). Requires authorization-gate consent before any payload is sent.
  */
 
 'use strict';
@@ -26,7 +28,7 @@ class LivePathTraversalModule extends BaseModule {
   constructor() {
     super(
       'livePathTraversal',
-      'Live path-traversal probe — /etc/passwd / win.ini read detection (Pen Test tier — requires authorization)',
+      'Live path-traversal probe — /etc/passwd / win.ini read detection (dormant — not run by any scan; reserved for a future penetration-testing product)',
     );
   }
 

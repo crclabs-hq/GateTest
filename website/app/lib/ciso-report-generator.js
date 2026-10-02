@@ -13,12 +13,16 @@
  *   2. Executive summary (Claude-generated narrative)
  *   3. Security posture scorecard (risk matrix table)
  *   4. OWASP Top 10 2021 mapping
- *   5. SOC2 Trust Service Criteria mapping
- *   6. CIS Controls v8 mapping
- *   7. Attack-chain correlation highlights
- *   8. Top findings with remediation owners
- *   9. Remediation roadmap (30/60/90 day)
- *  10. Appendix: full finding inventory
+ *   5. CIS Controls v8 mapping
+ *   6. Attack-chain correlation highlights
+ *   7. Top findings with remediation owners
+ *   8. Remediation roadmap (30/60/90 day)
+ *   9. Appendix: full finding inventory
+ *
+ * No SOC 2 section (Craig, 2026-10-01): SOC 2 compliance mapping is a
+ * separate future product that is not built or sold. The soc2 column stays
+ * in src/core/compliance-mappings.js for that product; this report does not
+ * read or output it.
  *
  * Compliance mappings are static lookup tables — no hallucination risk.
  * Claude is asked only to write the executive narrative paragraphs, where
@@ -33,7 +37,7 @@ const MAX_FINDINGS_FOR_NARRATIVE = 25;
 // ─── Compliance framework mappings ────────────────────────────────────────────
 //
 // The canonical mapping table lives in compliance-mappings.js. We keep
-// thin OWASP_MAPPING / SOC2_MAPPING / CIS_MAPPING projections exported
+// thin OWASP_MAPPING / CIS_MAPPING projections exported
 // here for backward compatibility with the existing tests, but every
 // LOOKUP in this file goes through getComplianceMapping() so unmapped
 // modules fall through to the central fallback rather than being silently
@@ -42,7 +46,6 @@ const MAX_FINDINGS_FOR_NARRATIVE = 25;
 const {
   getComplianceMapping,
   OWASP_TOP10,
-  SOC2_CRITERIA,
   CIS_CONTROLS,
   MODULE_COMPLIANCE,
 } = require('./compliance-mappings');
@@ -53,9 +56,6 @@ const { SITE_URL } = require('./site-url');
 // the central table.
 const OWASP_MAPPING = Object.fromEntries(
   Object.entries(MODULE_COMPLIANCE).map(([k, v]) => [k, [...v.owasp]])
-);
-const SOC2_MAPPING = Object.fromEntries(
-  Object.entries(MODULE_COMPLIANCE).map(([k, v]) => [k, [...v.soc2]])
 );
 const CIS_MAPPING = Object.fromEntries(
   Object.entries(MODULE_COMPLIANCE).map(([k, v]) => [k, [...v.cis]])
@@ -80,11 +80,10 @@ function severityEmoji(severity) {
 
 /**
  * Build a per-framework compliance gap summary from a list of findings.
- * Returns { owasp, soc2, cis } each as arrays of { control, title, findingCount }.
+ * Returns { owasp, cis } each as arrays of { control, title, findingCount }.
  */
 function buildComplianceGaps(findings) {
   const owaspHits = {};
-  const soc2Hits = {};
   const cisHits = {};
 
   for (const f of findings) {
@@ -96,9 +95,6 @@ function buildComplianceGaps(findings) {
 
     for (const cat of mapping.owasp) {
       owaspHits[cat] = (owaspHits[cat] || 0) + 1;
-    }
-    for (const crit of mapping.soc2) {
-      soc2Hits[crit] = (soc2Hits[crit] || 0) + 1;
     }
     for (const ctrl of mapping.cis) {
       cisHits[ctrl] = (cisHits[ctrl] || 0) + 1;
@@ -114,10 +110,6 @@ function buildComplianceGaps(findings) {
     owasp: sortByCount(owaspHits).map(e => ({
       ...e,
       title: OWASP_TOP10[e.control] || e.control,
-    })),
-    soc2: sortByCount(soc2Hits).map(e => ({
-      ...e,
-      title: SOC2_CRITERIA[e.control] || e.control,
     })),
     cis: sortByCount(cisHits).map(e => ({
       ...e,
@@ -240,18 +232,6 @@ function renderReport({ hostName, scanDate, tier, narrative, findings, chains, c
     `|---|---|---|`,
     ...(complianceGaps.owasp.length > 0
       ? complianceGaps.owasp.map(e => `| ${e.control} | ${e.title} | ${e.findingCount} |`)
-      : ['| — | No mapped findings | 0 |']),
-    ``,
-    `---`,
-    ``,
-    `## SOC2 Trust Service Criteria`,
-    ``,
-    `_Relevant for SOC2 Type II audit readiness._`,
-    ``,
-    `| Criterion | Description | Findings |`,
-    `|---|---|---|`,
-    ...(complianceGaps.soc2.length > 0
-      ? complianceGaps.soc2.map(e => `| ${e.control} | ${e.title} | ${e.findingCount} |`)
       : ['| — | No mapped findings | 0 |']),
     ``,
     `---`,
@@ -541,14 +521,14 @@ async function generateCisoReport({ findings = [], chains = [], hostName = 'Unkn
     counts.High > 0 ? 'ELEVATED' :
     counts.Medium > 10 ? 'MODERATE' : 'LOW';
 
-  const summary = `CISO report generated for ${hostName}: ${findings.length} findings (${counts.Critical} critical, ${counts.High} high, ${counts.Medium} medium, ${counts.Low} low). Risk level: ${riskLevel}. Compliance gaps: ${complianceGaps.owasp.length} OWASP, ${complianceGaps.soc2.length} SOC2, ${complianceGaps.cis.length} CIS.`;
+  const summary = `CISO report generated for ${hostName}: ${findings.length} findings (${counts.Critical} critical, ${counts.High} high, ${counts.Medium} medium, ${counts.Low} low). Risk level: ${riskLevel}. Compliance gaps: ${complianceGaps.owasp.length} OWASP, ${complianceGaps.cis.length} CIS.`;
 
   return {
     markdown,
     html,
     summary,
     complianceGaps,
-    sections: ['cover', 'executiveSummary', 'scorecard', 'owasp', 'soc2', 'cis', 'attackChains', 'roadmap', 'appendix'],
+    sections: ['cover', 'executiveSummary', 'scorecard', 'owasp', 'cis', 'attackChains', 'roadmap', 'appendix'],
     riskLevel,
     counts,
   };
@@ -577,10 +557,8 @@ module.exports = {
   cisoReportPath,
   classifySeverity,
   OWASP_MAPPING,
-  SOC2_MAPPING,
   CIS_MAPPING,
   OWASP_TOP10,
-  SOC2_CRITERIA,
   CIS_CONTROLS,
   MAX_FINDINGS_FOR_NARRATIVE,
 };

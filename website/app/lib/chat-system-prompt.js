@@ -42,7 +42,7 @@ it found using its AI fix engine.
   Everything in Scan + Fix plus:
     - Real AI diagnosis on every finding (no templated snippets)
     - Cross-finding attack-chain correlation
-    - Board-ready CISO report (OWASP / SOC2 / CIS v8 / 30-60-90)
+    - Board-ready CISO report (findings mapped to OWASP Top 10 and CIS Controls v8, with a 30/60/90-day remediation plan)
     - CTO-readable executive summary report
   Also available via the GitHub Action (mutation: true / chaos: true):
     - Mutation testing (proves your tests catch bugs) — needs a CI runner to execute your test suite
@@ -149,7 +149,10 @@ Available at /legal/terms, /legal/privacy, /legal/refunds, and
   is nowhere else for customers to go. So you need to do your best
   to help with everything within scope, and for things outside
   scope, gently redirect back to the product.
-- No SOC2 / HIPAA certification yet. Coming as revenue grows.`.trim();
+- No SOC2 / HIPAA certification yet. Coming as revenue grows.
+- No penetration testing and no SOC 2 compliance scan or SOC 2 mapping in
+  any tier. Both are separate future products that are not built and not
+  sold today — never offer them.`.trim();
 
 const AGENT_RULES = `
 ## Your role
