@@ -1,4 +1,5 @@
 import { TIERS } from "../../lib/checkout-tiers";
+import { SalesPausedNotice } from "./SalesPausedNotice";
 
 /**
  * Pricing as a table, every number imported from the checkout definition
@@ -28,6 +29,7 @@ export function Pricing() {
 
   return (
     <div className="overflow-x-auto">
+      <SalesPausedNotice />
       <table className="v2-table">
         <thead>
           <tr>

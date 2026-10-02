@@ -99,6 +99,8 @@ const OPTIONAL = [
   "GATETEST_SSH_HOST", "GATETEST_SSH_PORT", "GATETEST_SSH_USER", "GATETEST_SSH_KEY", "GATETEST_SSH_PASSWORD",
   "GATETEST_SSH_HOSTNAMES",
   "GATETEST_SECRETS_MASTER_KEY_NEXT",
+  // The sales switch (lib/sales-pause.js) — listed so the panel shows and sets it.
+  "GATETEST_SALES_PAUSED",
   // Added 2026-10-01: read through an injected `env` object or platformEnv(),
   // which the drift test could not see until then — TALLRIG_PUSH_SECRET was
   // read in production and listed nowhere.
@@ -112,6 +114,7 @@ const OPTIONAL = [
 // object: `SOME_SECRET: "text"` reads as a hardcoded credential to the
 // secrets module (and to every other scanner a customer runs on this repo).
 const OPTIONAL_WHY_LIST = [
+  { name: "GATETEST_SALES_PAUSED", why: "the sales switch: paid checkout is CLOSED unless this is exactly 0 — unset keeps every paid plan off sale (Craig 2026-10-01)" },
   { name: "TALLRIG_PUSH_KEY_ID", why: "pairs with TALLRIG_PUSH_SECRET — when set, a Tallrig push whose X-Tallrig-Key-Id differs is refused (key rotation)" },
   { name: "TALLRIG_API_KEY", why: "Tallrig platform mail transport bearer (MAIL_PROVIDER=tallrig) — falls back to TALLRIG_API_TOKEN when unset" },
   { name: "MAIL_PROVIDER", why: "which service sends e-mail: 'resend' or 'tallrig' — unset sends through Resend while RESEND_API_KEY is set" },
