@@ -6,7 +6,7 @@
 const BaseModule = require('./base-module');
 const fs = require('fs');
 const path = require('path');
-const { looksLikeMissingToolchain, looksLikeToolchainBuildFailure, firstToolchainErrorLine } = require('../core/toolchain-signals');
+const { looksLikeMissingToolchain, isPassingTestLine, looksLikeToolchainBuildFailure, firstToolchainErrorLine } = require('../core/toolchain-signals');
 const { repoRelative } = require('../core/repo-path');
 const { planTestRun } = require('../core/test-impact');
 const flakyLedger = require('../core/flaky-ledger');
@@ -553,7 +553,7 @@ class UnitTestsModule extends BaseModule {
   }
 
   _firstLine(out) {
-    const line = (out || '').split(/\r?\n/).map((l) => l.trim()).find((l) => /ModuleNotFoundError|No module named|command not found|not recognized|ENOENT|Cannot find module|not found/i.test(l));
+    const line = (out || '').split(/\r?\n/).map((l) => l.trim()).find((l) => !isPassingTestLine(l) && /ModuleNotFoundError|No module named|command not found|not recognized|ENOENT|Cannot find module|not found/i.test(l));
     return (line || 'runner unavailable').slice(0, 160);
   }
 
