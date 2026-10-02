@@ -31,7 +31,12 @@ class E2eModule extends BaseModule {
     // node_modules, `npx cypress run` spent 108 s fetching Cypress and then
     // reported a blocking "E2E tests failed" (2026-08-18 audit). If the
     // package is not installed the honest result is a skip.
-    const installed = framework.packages.some((pkg) => fs.existsSync(path.join(projectRoot, 'node_modules', ...pkg.split('/'))));
+    // A custom `test:e2e` / `e2e` script names no package to look for; its
+    // dependencies are installed when node_modules is. (Tallrig 2026-10-02:
+    // `framework.packages` was undefined here and the module crashed.)
+    const installed = (framework.packages || []).length > 0
+      ? framework.packages.some((pkg) => fs.existsSync(path.join(projectRoot, 'node_modules', ...pkg.split('/'))))
+      : fs.existsSync(path.join(projectRoot, 'node_modules'));
     if (!installed) {
       result.addCheck('e2e:run', true, {
         severity: 'info',
