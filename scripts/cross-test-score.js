@@ -61,6 +61,8 @@ const CLASS_RULES = {
   'insecure-default-plan-tier': ['insecure-default-tier'],
   'lockfile-manifest-drift': ['peer-meta-drift'],
   'ambient-credential-fallback': ['ambient-credential-fallback'],
+  'tenant-scope-missing': ['unscoped-lookup'],
+  'removed-resource-still-routes': ['soft-state-unfiltered'],
 };
 
 const SEP_RE = /^\s*(?:\/\/|--|#)\s*\.\.\.\s*([^\s:]+\.[\w]+):(\d+)\s*$/;
