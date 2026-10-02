@@ -60,19 +60,7 @@ const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
 };
 
 const _scanFixLimiter = createLimiter(PRESETS.scanFix);
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { buildForensicRepoReport, forensicReportPath } = require("@/app/lib/forensic-repo-report") as {
-  buildForensicRepoReport: (opts: {
-    findings: Array<{ detail: string; module?: string; severity?: string }>;
-    chains?: Array<{ title: string; severity: string; impact: string }>;
-    hostname: string;
-    askClaude: (prompt: string) => Promise<string>;
-  }) => Promise<
-    | { ok: true; diagnosed: number; skipped: number; executiveSummary: boolean; markdown: string; summary?: string }
-    | { ok: false; reason: string }
-  >;
-  forensicReportPath: (scanDate?: string) => string;
-};
+import { buildForensicRepoReport, forensicReportPath } from "@/app/lib/forensic-repo-report";
 // Phase 1 of THE FIX-FIRST BUILD PLAN — N-attempt iterative loop with
 // structured per-attempt logging. The loop carries forward each previous
 // failure into the next prompt so Claude sees its own mistake. Pure JS

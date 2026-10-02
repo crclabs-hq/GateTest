@@ -17,6 +17,7 @@
 const { diagnoseFindings, renderDiagnosesReport } = require('./nuclear-diagnoser');
 const { composeExecutiveSummary, renderExecutiveSummary } = require('./executive-summary');
 
+/** @param {string} [scanDate] YYYY-MM-DD; today when omitted */
 function forensicReportPath(scanDate) {
   const d = scanDate || new Date().toISOString().slice(0, 10);
   return `gatetest-reports/forensic-diagnosis-${d}.md`;
@@ -28,6 +29,7 @@ function forensicReportPath(scanDate) {
  * @param {Array<{title:string,severity:string,impact:string}>} [opts.chains]
  * @param {string} opts.hostname   owner/repo
  * @param {(prompt:string)=>Promise<string>} opts.askClaude
+ * @returns {Promise<{ok: true, diagnosed: number, skipped: number, executiveSummary: boolean, markdown: string, summary?: string} | {ok: false, reason: string}>}
  */
 async function buildForensicRepoReport({ findings, chains = [], hostname, askClaude }) {
   const list = Array.isArray(findings) ? findings : [];
