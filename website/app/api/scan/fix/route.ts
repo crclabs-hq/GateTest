@@ -60,6 +60,19 @@ const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
 };
 
 const _scanFixLimiter = createLimiter(PRESETS.scanFix);
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { buildForensicRepoReport, forensicReportPath } = require("@/app/lib/forensic-repo-report") as {
+  buildForensicRepoReport: (opts: {
+    findings: Array<{ detail: string; module?: string; severity?: string }>;
+    chains?: Array<{ title: string; severity: string; impact: string }>;
+    hostname: string;
+    askClaude: (prompt: string) => Promise<string>;
+  }) => Promise<
+    | { ok: true; diagnosed: number; skipped: number; executiveSummary: boolean; markdown: string; summary?: string }
+    | { ok: false; reason: string }
+  >;
+  forensicReportPath: (scanDate?: string) => string;
+};
 // Phase 1 of THE FIX-FIRST BUILD PLAN — N-attempt iterative loop with
 // structured per-attempt logging. The loop carries forward each previous
 // failure into the next prompt so Claude sees its own mistake. Pure JS
@@ -2369,6 +2382,10 @@ export async function POST(req: NextRequest) {
       failed?: boolean;
     } | undefined;
     let cisoReportSummary: string | undefined;
+    let forensicSummary: string | undefined;
+    let forensicReportFile: string | undefined;
+    let forensicFindings: Array<{ detail: string; module: string; severity: string }> = [];
+    let forensicChains: Array<{ title: string; severity: string; impact: string }> = [];
     if (input.tier === "nuclear") {
       try {
         // Build the findings list from the original (pre-fix) findings the
@@ -2399,12 +2416,16 @@ export async function POST(req: NextRequest) {
         // chains:[] with a human-readable note. The Forensic deliverable
         // STILL ships either way — chains are an additive lift on top
         // of the per-finding diagnosis the CISO report already covers.
+        // Captured before anything that can throw, so a failed CISO step
+        // never makes the forensic report claim "no findings".
+        forensicFindings = cisoFindings;
         const correlationResult = await correlateForCisoChains({
           tier: "nuclear",
           findings: cisoFindings.map((f) => ({ detail: f.detail, module: f.module, severity: f.severity })),
           hostname: `${owner}/${repo}`,
           askClaude: askClaudeForTest,
         });
+        forensicChains = correlationResult.chains;
         if (correlationResult.note) {
           // Surface the honest reason in the PR body so customers see
           // why their CISO report rendered without chains. Not a hard
@@ -2461,6 +2482,32 @@ export async function POST(req: NextRequest) {
         errors.push(`CISO report generation failed (report not attached to PR): ${msg}`);
         cisoReportDescriptor = { failed: true };
         cisoReportSummary = `ciso: failed (${msg})`;
+      }
+
+      // Per-finding AI diagnosis + CTO executive summary — sold on the
+      // Forensic tier, previously reachable only through the admin-only
+      // /api/scan/server-fix. Committed next to the CISO report; fail-soft.
+      try {
+        const forensic = await buildForensicRepoReport({
+          findings: forensicFindings,
+          chains: forensicChains,
+          hostname: `${owner}/${repo}`,
+          askClaude: askClaudeForTest,
+        });
+        if (!forensic.ok) {
+          errors.push(`Forensic diagnosis failed (report not attached to PR): ${forensic.reason}`);
+          forensicSummary = `forensic: failed (${forensic.reason})`;
+        } else {
+          const path = forensicReportPath();
+          const existingSha = await fetchFileSha(owner, repo, path, branchName, token);
+          await upsertFile(owner, repo, path, forensic.markdown, "docs(gatetest): add forensic diagnosis + executive summary", branchName, existingSha, token);
+          forensicReportFile = path;
+          forensicSummary = `forensic: ${forensic.diagnosed} finding(s) diagnosed, ${forensic.skipped} skipped, executive summary ${forensic.executiveSummary ? "included" : "not generated"} — ${path}`;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "forensic report failed";
+        errors.push(`Forensic diagnosis report failed (report not attached to PR): ${msg}`);
+        forensicSummary = `forensic: failed (${msg})`;
       }
     }
 
@@ -2593,8 +2640,12 @@ export async function POST(req: NextRequest) {
     // per-file scanner cannot see (layering, god objects, etc.).
     // Requires `originalFileContents` so it has the codebase shape;
     // skipped silently if the caller didn't pass that.
+    // Forensic is sold as "Everything in Scan + Fix, PLUS …", so the $199
+    // extras (architecture notes, pair review, confidence) run for it too —
+    // until 2026-10-02 a $399 buyer got less than a $199 buyer here.
+    const includesScanFixExtras = input.tier === "scan_fix" || input.tier === "nuclear";
     let architectureSummary: string | undefined;
-    if (input.tier === "scan_fix" && Array.isArray(input.originalFileContents) && input.originalFileContents.length > 0) {
+    if (includesScanFixExtras && Array.isArray(input.originalFileContents) && input.originalFileContents.length > 0) {
       try {
         const arch = await annotateArchitecture({
           fileContents: input.originalFileContents,
@@ -2620,7 +2671,7 @@ export async function POST(req: NextRequest) {
     // a second pair of eyes on every fix.
     let pairReviewSummary: string | undefined;
     let confidenceSummary: string | undefined;
-    if (input.tier === "scan_fix") {
+    if (includesScanFixExtras) {
       try {
         // Build map: source-file → regression-test-content for the
         // pair-review agent to see per-fix tests.
@@ -2731,13 +2782,13 @@ export async function POST(req: NextRequest) {
       testGeneration: { testsWritten: testGen.tests.length, skipped: testGen.skipped, summary: testGenSummary },
       pairReview: pairReviewSummary
         ? { summary: pairReviewSummary }
-        : { skipped: true, reason: "tier is not scan_fix — pair review is a $199-tier value-add" },
+        : { skipped: true, reason: "tier is not scan_fix or nuclear — pair review is a $199-tier value-add" },
       confidence: confidenceSummary
         ? { summary: confidenceSummary }
-        : { skipped: true, reason: "tier is not scan_fix — confidence-aware reporting is a $199-tier value-add" },
+        : { skipped: true, reason: "tier is not scan_fix or nuclear — confidence-aware reporting is a $199-tier value-add" },
       architecture: architectureSummary
         ? { summary: architectureSummary }
-        : { skipped: true, reason: "tier is not scan_fix or originalFileContents not supplied — architecture annotation is a $199-tier value-add" },
+        : { skipped: true, reason: "tier is not scan_fix or nuclear, or originalFileContents not supplied — architecture annotation is a $199-tier value-add" },
       cisoReport: cisoReportSummary
         ? {
             summary: cisoReportSummary,
@@ -2746,6 +2797,9 @@ export async function POST(req: NextRequest) {
             failed: cisoReportDescriptor?.failed === true,
           }
         : { skipped: true, reason: "tier is not nuclear — board-ready CISO report is a $399-tier deliverable" },
+      forensicDiagnosis: forensicSummary
+        ? { summary: forensicSummary, path: forensicReportFile }
+        : { skipped: true, reason: "tier is not nuclear — per-finding diagnosis + executive summary are $399-tier deliverables" },
       consensus: useConsensus
         ? { enabled: true, filesRun: consensusReports.length, reports: consensusReports }
         : { skipped: true, reason: consensusSkipReason },
