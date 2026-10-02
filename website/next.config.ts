@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+import { LEGACY_SITE_HOSTS } from "./app/lib/legacy-site-hosts.js";
 
 // Treat the REPO root (one level above this file) as the build / tracing
 // root so `@lib/*` aliases that point at `../lib/*` resolve correctly.
@@ -34,6 +35,7 @@ const CLI_ENGINE_ROUTES = [
 // forwards both hosts to this process, so the redirect has to live here.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { DEFAULT_SITE_URL } = require("./app/lib/site-url.js") as { DEFAULT_SITE_URL: string };
+
 const siteOrigin = new URL(process.env.NEXT_PUBLIC_BASE_URL || DEFAULT_SITE_URL);
 
 // URLs people guess that never existed here. Each target was checked live
@@ -99,6 +101,16 @@ const nextConfig: NextConfig = {
         destination: `${siteOrigin.origin}/:path*`,
         permanent: true,
       },
+      // Former domains (lib/legacy-site-hosts.js), apex and www →
+      // the canonical origin, permanent, path and query preserved — the
+      // badge URLs in customers' READMEs keep rendering. 308 keeps the
+      // method, so an old API client's POST is not turned into a GET.
+      ...LEGACY_SITE_HOSTS.flatMap((host) => [host, `www.${host}`]).map((host) => ({
+        source: "/:path*",
+        has: [{ type: "host" as const, value: host }],
+        destination: `${siteOrigin.origin}/:path*`,
+        permanent: true,
+      })),
       // /preview reviewed the v2 homepage in isolation before launch
       // (issue #636); the owner approved it 2026-09-23 and it is now
       // promoted to / (issue #686 phase 3, website/app/page.tsx). Kept as a
