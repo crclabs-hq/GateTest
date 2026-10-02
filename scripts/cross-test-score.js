@@ -63,6 +63,9 @@ const CLASS_RULES = {
   'ambient-credential-fallback': ['ambient-credential-fallback'],
   'tenant-scope-missing': ['unscoped-lookup'],
   'removed-resource-still-routes': ['soft-state-unfiltered'],
+  'identifier-as-credential': ['identifier-as-credential'],
+  'fail-open-auth': ['deny-list-status', 'key-door-owner-unchecked'],
+  'soft-delete-keeps-access': ['suspend-keeps-keys'],
 };
 
 const SEP_RE = /^\s*(?:\/\/|--|#)\s*\.\.\.\s*([^\s:]+\.[\w]+):(\d+)\s*$/;

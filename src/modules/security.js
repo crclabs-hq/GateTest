@@ -28,6 +28,7 @@ const { repoRelative } = require('../core/repo-path');
 const { literalKindAt } = require('../core/source-strip');
 const { scanDisclosure } = require('../core/disclosure-rules');
 const { scanAccessScope } = require('../core/access-scope-rules');
+const { scanAccountState } = require('../core/account-state-rules');
 const { isTestPath } = require('../core/test-paths');
 const { peerMetaDrift, cspEvalConflict } = require('../core/project-config-rules');
 // The published-example list lives with the module that owns the doctrine
@@ -900,7 +901,7 @@ class SecurityModule extends BaseModule {
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
       configTexts.push({ relPath, content });
-      for (const f of [...scanDisclosure(relPath, content), ...scanAccessScope(relPath, content)]) {
+      for (const f of [...scanDisclosure(relPath, content), ...scanAccessScope(relPath, content), ...scanAccountState(relPath, content)]) {
         result.addCheck(`security:${f.rule}:${relPath}:${f.line}`, false, {
           file: relPath,
           line: f.line,
