@@ -252,3 +252,30 @@ describe('authorization-gate — helpers', () => {
     assert.strictEqual(result, false);
   });
 });
+
+// Craig 2026-10-01: there is no Pen Test tier. The five live probes are
+// dormant (in no suite) and their user-visible descriptions — shown by
+// `gatetest --list`, the MCP module list and the website — must say so.
+describe('dormant live probes — descriptions never sell a Pen Test tier', () => {
+  const { DEFAULT_CONFIG } = require('../src/core/config');
+  const PROBES = {
+    liveSqlInjection: '../src/modules/live-sql-injection',
+    liveXss: '../src/modules/live-xss',
+    livePathTraversal: '../src/modules/live-path-traversal',
+    liveAuthBypass: '../src/modules/live-auth-bypass',
+    liveIdor: '../src/modules/live-idor',
+  };
+  for (const [name, rel] of Object.entries(PROBES)) {
+    it(`${name}: dormant, in no suite, no "Pen Test tier"`, () => {
+      const Mod = require(rel);
+      const m = new Mod();
+      assert.strictEqual(m.name, name);
+      assert.doesNotMatch(m.description, /pen ?test tier/i);
+      assert.match(m.description, /dormant — not run by any scan; reserved for a future penetration-testing product/);
+      assert.match(m.description, /^Live .+ probe — /, 'keeps the what-it-does phrase');
+      const inSuites = Object.entries(DEFAULT_CONFIG.suites)
+        .filter(([, mods]) => Array.isArray(mods) && mods.includes(name)).map(([s]) => s);
+      assert.deepStrictEqual(inSuites, [], `${name} must stay out of every suite`);
+    });
+  }
+});

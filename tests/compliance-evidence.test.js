@@ -1,7 +1,8 @@
 'use strict';
 
-// src/core/compliance-evidence.js — findings filed under OWASP / SOC 2 / CIS
-// control by control, three-state (the Fifty, move 46). The controls that
+// src/core/compliance-evidence.js — findings filed under OWASP / CIS control
+// by control, three-state (the Fifty, move 46). No SOC 2: that is a future,
+// separate product (Craig 2026-10-01), so the pack must not present it. The controls that
 // matter are the ones that must NOT read as a pass: a control no mapped
 // module ran for, and a module with findings but no mapping.
 
@@ -49,8 +50,8 @@ test('a blocking finding from a mapped module fails its controls, with the evide
 
 test('a soft error is WARN, never FAIL and never PASS', () => {
   const ev = buildComplianceEvidence(summary());
-  const [id] = getComplianceMapping('secrets').soc2;
-  const c = ev.frameworks.soc2.controls[id];
+  const [id] = getComplianceMapping('secrets').cis;
+  const c = ev.frameworks.cis.controls[id];
   assert.equal(c.findings.soft, 1);
   assert.notEqual(c.status, 'pass');
   assert.notEqual(c.status, 'fail');
@@ -113,4 +114,19 @@ test('the Markdown says what was not checked and never dresses silence as a pass
   assert.match(md, /Unsigned — set GATETEST_REPORT_SIGNING_KEY/);
   const signed = renderComplianceMarkdown(ev, { signed: true, keyId: 'abc123' });
   assert.match(signed, /Signed \(HMAC-SHA256, key id abc123\)/);
+});
+
+test('the pack covers OWASP Top 10 2021 and CIS Controls v8 only — no SOC 2 (Craig 2026-10-01: a future product, not sold today)', () => {
+  const ev = buildComplianceEvidence(summary());
+  assert.deepEqual(Object.keys(ev.frameworks).sort(), ['cis', 'owasp']);
+  assert.deepEqual(Object.keys(ev.totals).sort(), ['cis', 'owasp']);
+  assert.equal(ev.frameworks.owasp.name, 'OWASP Top 10 2021');
+  assert.equal(ev.frameworks.cis.name, 'CIS Controls v8');
+  const md = renderComplianceMarkdown(ev, { version: '9.9.9', timestamp: 'T', gateStatus: 'BLOCKED', signed: false });
+  assert.match(md, /## OWASP Top 10 2021/);
+  assert.match(md, /## CIS Controls v8/);
+  assert.doesNotMatch(md, /SOC ?2|Trust Services/i);
+  assert.doesNotMatch(JSON.stringify(ev), /SOC ?2|Trust Services/i);
+  // The soc2 column stays in the mapping table for the future product.
+  assert.ok(getComplianceMapping('ssrf').soc2.length > 0);
 });
