@@ -570,9 +570,9 @@ class CodeQualityModule extends BaseModule {
             // Only a line that is nothing but one console.log/debug/info
             // statement or `debugger;` may be deleted. eval / new Function /
             // innerHTML lines carry behaviour (audit 2026-10-02: --fix deleted
-            // `return eval(...)` and load() silently returned undefined), a
-            // TODO is information, and a multi-line console.log( would leave
-            // its arguments behind as a syntax error.
+            // `return eval(...)` and load() silently returned undefined), an
+            // unresolved-work note is information, and a multi-line
+            // console.log( would leave its arguments behind as a syntax error.
             ...(isRemovableStatementLine(neutralised)
               ? { autoFix: () => this._removeLineFromFile(absPath, lineNum, relPath, message) }
               : {}),
