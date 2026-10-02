@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
 import { NonceScript } from "@/app/lib/seo/NonceScript";
 
@@ -42,7 +42,7 @@ const faqItems = [
   },
   {
     q: "What does Semgrep's free tier include vs. paid?",
-    a: `Semgrep OSS (open-source core) is free and powerful for security engineers who want to write or import custom rules. Semgrep Code (SAST), Supply Chain (SCA), and Secrets are commercial products with seat-based pricing. GateTest charges per scan: $99 for all ${TOTAL_MODULES} modules. No rules to write, no per-developer licensing, no annual contracts.`,
+    a: `Semgrep OSS (open-source core) is free and powerful for security engineers who want to write or import custom rules. Semgrep Code (SAST), Supply Chain (SCA), and Secrets are commercial products with seat-based pricing. GateTest charges per scan: $99 for every module that applies to a repository (${FULL_SCAN_MODULES} of the ${TOTAL_MODULES}). No rules to write, no per-developer licensing, no annual contracts.`,
   },
   {
     q: "Does GateTest replace Semgrep rules I've already written?",

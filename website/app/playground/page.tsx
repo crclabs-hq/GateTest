@@ -6,7 +6,7 @@ import { consumeSseStream } from "@/app/components/url-scan-flow-sse";
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 import { SITE_URL, badgeUrl } from "@/app/lib/site-url";
 import { Hero, Section } from "../components/v2";
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 import { SAMPLE_REPORT_URL } from "@/app/lib/sample-report";
 import { useSalesStatus } from "@/app/components/useSalesStatus";
 
@@ -922,7 +922,7 @@ export default function PlaygroundPage() {
               {
                 icon: "🎯",
                 title: "Real checks, real findings",
-                body: `This isn't a canned demo — it runs the same four checks a paid Quick Scan does against your actual code. Paid Full, Scan + Fix and Forensic scans run every applicable module of the ${TOTAL_MODULES}-module engine on top.`,
+                body: `This isn't a canned demo — it runs the same four checks a paid Quick Scan does against your actual code. Paid Full, Scan + Fix and Forensic scans run the ${FULL_SCAN_MODULES}-module repository suite (of the ${TOTAL_MODULES}-module engine) on top.`,
               },
               {
                 icon: "🔒",

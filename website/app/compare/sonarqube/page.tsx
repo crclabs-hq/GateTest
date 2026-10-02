@@ -2,7 +2,7 @@
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
 import PageHero from "../../components/site/PageHero";
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
@@ -188,7 +188,7 @@ export default function SonarQubePage() {
               },
               {
                 title: "Faster feedback loop",
-                body: `SonarQube quality gates can take minutes on large projects. GateTest quick scans complete in well under a minute; full ${TOTAL_MODULES}-module scans typically complete in a few minutes. Every push gets fast feedback — no waiting for a background worker to catch up.`,
+                body: `SonarQube quality gates can take minutes on large projects. GateTest quick scans complete in well under a minute; full scans (the ${FULL_SCAN_MODULES}-module repository suite) typically complete in a few minutes. Every push gets fast feedback — no waiting for a background worker to catch up.`,
               },
             ].map((card) => (
               <div
@@ -224,7 +224,7 @@ export default function SonarQubePage() {
             Ready to replace SonarQube?
           </h2>
           <p className="text-foreground-secondary mb-8 max-w-xl mx-auto">
-            Paste your repo URL and get a full {TOTAL_MODULES}-module scan in minutes. No server setup,
+            Paste your repo URL and get a full {FULL_SCAN_MODULES}-module repository scan in minutes. No server setup,
             no config files, no per-seat pricing. One-time payment per scan.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

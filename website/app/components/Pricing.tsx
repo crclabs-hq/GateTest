@@ -9,7 +9,7 @@ import { useState } from "react";
 // "88 modules" for the $99 tier while the engine shipped 121, understating
 // what the customer gets. module-count-sync.test.js only guards three-digit
 // claims, so a two-digit stale number slipped through it (2026-08-04).
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 
 export const pricingScans = [
   {
@@ -33,9 +33,9 @@ export const pricingScans = [
     name: "Full Scan",
     price: "$99",
     period: "per run",
-    description: `The full engine suite — ${TOTAL_MODULES} modules: security, supply chain, auth hardening, CI security, AI safety, and more. (Mutation + chaos ship via the GitHub Action.)`,
+    description: `Every module that applies to a repository — ${FULL_SCAN_MODULES} of the ${TOTAL_MODULES}: security, supply chain, auth hardening, CI security, AI safety, and more. (Live-site and WordPress modules need a deployed site; mutation + chaos ship via the GitHub Action.)`,
     features: [
-      `Full ${TOTAL_MODULES}-Module Engine Suite`,
+      `${FULL_SCAN_MODULES}-Module Repository Suite`,
       "Security & Auth Hardening",
       "Supply Chain & Dependency Audit",
       "CI/CD & Container Security",
@@ -52,7 +52,7 @@ export const pricingScans = [
     period: "per run",
     description: "Full-suite deep scan with iterative auto-fix PR, pair-review agent, and architecture annotations.",
     features: [
-      `Full ${TOTAL_MODULES}-Module Engine Suite`,
+      `${FULL_SCAN_MODULES}-Module Repository Suite`,
       "Iterative Fix Loop (up to 3 attempts per finding)",
       "Cross-Fix Syntax + Scanner Gate",
       "Regression Test Generated per Fix",

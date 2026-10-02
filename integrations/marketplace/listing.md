@@ -60,7 +60,7 @@
 ## Introductory description (≤500 chars — top of the listing page)
 
 ```
-GateTest is a CI quality gate that fails on the diff, not the backlog. Every push and pull request is scanned by every deterministic module of the 122-module engine, and the gate blocks only on lines the change touched. Older findings are reported, never enforced. Every report says what was not checked. Free on every repo you install it on, no card. Model-powered review and auto-fix pull requests are sold separately at [gatetest.io](https://gatetest.io).
+GateTest is a CI quality gate that fails on the diff, not the backlog. Every push and pull request is scanned by every deterministic module of the repository suite (89 of the engine's 122 modules), and the gate blocks only on lines the change touched. Older findings are reported, never enforced. Every report says what was not checked. Free on every repo you install it on, no card. Model-powered review and auto-fix pull requests are sold separately at [gatetest.io](https://gatetest.io).
 ```
 
 ---
@@ -69,7 +69,7 @@ GateTest is a CI quality gate that fails on the diff, not the backlog. Every pus
 
 ```markdown
 ### What runs on every push, free
-Every deterministic module in the 122-module engine: hardcoded secrets, SSRF, ReDoS, TLS and cookie misconfiguration, SQL-migration safety, N+1 queries, race conditions, resource leaks, async footguns, Dockerfile / Kubernetes / Terraform hardening, CI-workflow hardening, import cycles, dead code, money-as-float, PII in logs. You get a commit status and a pull-request comment that lists findings by line and names what was not checked.
+Every deterministic module in the repository suite (89 of the engine's 122): hardcoded secrets, SSRF, ReDoS, TLS and cookie misconfiguration, SQL-migration safety, N+1 queries, race conditions, resource leaks, async footguns, Dockerfile / Kubernetes / Terraform hardening, CI-workflow hardening, import cycles, dead code, money-as-float, PII in logs. You get a commit status and a pull-request comment that lists findings by line and names what was not checked.
 
 ### Built for people who have been burned by scanners
 - **Blocks on the diff, not the backlog.** A finding on a line you did not touch is reported, never enforced. Install on a ten-year-old repo and the next PR is judged on its own changes.
@@ -113,9 +113,9 @@ gatetest.io and must not be described as purchasable through this listing.
 ### Free plan — configuration reference
 - **Plan name:** Free
 - **Type:** Free
-- **Description (≤255 chars):** Every push and pull request scanned by every deterministic module of the 122-module engine. Blocks only on lines the change touched and says what was not checked. No card required.
+- **Description (≤255 chars):** Every push and pull request scanned by every deterministic module of the 89-module repository suite. Blocks only on lines the change touched and says what was not checked. No card required.
 - **Bullet points:**
-  - Every deterministic module of the 122-module engine, on every push and pull request
+  - Every deterministic module of the 89-module repository suite, on every push and pull request
   - Blocks on the diff, not the backlog
   - Every report says what was not checked
   - Commit status and PR comment on every repo you install it on

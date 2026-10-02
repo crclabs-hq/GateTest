@@ -6,7 +6,7 @@ import { ChatWidget } from "./components/ChatWidget";
 import { SiteHeader, SiteFooter } from "./components/SiteChrome";
 import { organizationSchema, webSiteSchema, jsonLd } from "./lib/seo/schema";
 import { SITE_URL } from "./lib/site-url";
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 import { THEME_INIT_SCRIPT } from "./components/ThemeToggle";
 
 // Editorial display face for headlines — gives the marketing surfaces a
@@ -158,7 +158,7 @@ export default async function RootLayout({
                   price: "99.00",
                   priceCurrency: "USD",
                   description:
-                    `Every applicable module of the ${TOTAL_MODULES}-module engine, including AI code review, security, supply chain, auth flaws, and more`,
+                    `The ${FULL_SCAN_MODULES}-module repository suite of the ${TOTAL_MODULES}-module engine, including AI code review, security, supply chain, auth flaws, and more`,
                 },
                 {
                   "@type": "Offer",
@@ -166,7 +166,7 @@ export default async function RootLayout({
                   price: "199.00",
                   priceCurrency: "USD",
                   description:
-                    `Every applicable module of the ${TOTAL_MODULES}-module engine plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations`,
+                    `The ${FULL_SCAN_MODULES}-module repository suite plus an AI auto-fix pull request with regression tests, pair-review, and architecture annotations`,
                 },
                 {
                   "@type": "Offer",

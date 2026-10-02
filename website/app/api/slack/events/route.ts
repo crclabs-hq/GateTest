@@ -30,6 +30,7 @@ import {
   buildScanCompleteBlocks,
 } from "@/app/lib/slack-notifier";
 import { SITE_URL } from "@/app/lib/site-url";
+import { FULL_SCAN_MODULES } from "@/app/lib/module-count";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       slashResponse(
         "*GateTest slash commands:*\n" +
         "`/gatetest scan <github-url>`  — Quick scan of a repo (4 core modules, ~8s)\n" +
-        "`/gatetest scan <github-url> full`  — Full 122-module deep scan\n" +
+        `\`/gatetest scan <github-url> full\`  — Full scan (${FULL_SCAN_MODULES}-module repository suite)\n` +
         "`/gatetest scan <github-url> smart`  — Diff-aware smart scan (auto-selects relevant modules)\n" +
         "`/gatetest status`  — Platform health check\n" +
         "`/gatetest help`  — This message\n\n" +

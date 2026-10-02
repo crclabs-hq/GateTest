@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 import PageHero from "../../components/site/PageHero";
 import { NonceScript } from "@/app/lib/seo/NonceScript";
 
@@ -42,7 +42,7 @@ const faqItems = [
   },
   {
     q: "Does CodeQL require GitHub Advanced Security?",
-    a: `For public repositories on GitHub, CodeQL is free via GitHub Actions. For private repositories, CodeQL requires GitHub Advanced Security, which is priced per committer per month — a significant budget line for larger teams. GateTest charges per scan ($99 for all ${TOTAL_MODULES} modules, no per-seat licensing) and works with any GitHub repository (public or private) as well as Gluecron-hosted repos.`,
+    a: `For public repositories on GitHub, CodeQL is free via GitHub Actions. For private repositories, CodeQL requires GitHub Advanced Security, which is priced per committer per month — a significant budget line for larger teams. GateTest charges per scan ($99 for every module that applies to a repository (${FULL_SCAN_MODULES} of the ${TOTAL_MODULES}), no per-seat licensing) and works with any GitHub repository (public or private) as well as Gluecron-hosted repos.`,
   },
   {
     q: "Can CodeQL auto-fix vulnerabilities?",
@@ -233,7 +233,7 @@ export default function CodeQLPage() {
               },
               {
                 title: "No Advanced Security licence required",
-                body: `CodeQL on private repos requires GitHub Advanced Security, which is priced per committer per month. A 20-person team pays hundreds of dollars monthly before running a single scan. GateTest charges $99 per scan for all ${TOTAL_MODULES} modules — no seat licensing, no annual contracts. The price is identical for a solo developer and a 500-person team.`,
+                body: `CodeQL on private repos requires GitHub Advanced Security, which is priced per committer per month. A 20-person team pays hundreds of dollars monthly before running a single scan. GateTest charges $99 per scan for every module that applies to a repository (${FULL_SCAN_MODULES} of the ${TOTAL_MODULES}) — no seat licensing, no annual contracts. The price is identical for a solo developer and a 500-person team.`,
               },
               {
                 title: `${TOTAL_MODULES} categories vs. security-only`,
