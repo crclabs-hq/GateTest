@@ -8,11 +8,7 @@
  */
 
 import { NextResponse } from "next/server";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { salesPaused, SALES_PAUSED_MESSAGE } = require("@/app/lib/sales-pause") as {
-  salesPaused: (env?: Record<string, string | undefined>) => boolean;
-  SALES_PAUSED_MESSAGE: string;
-};
+import { salesPaused, SALES_PAUSED_MESSAGE } from "@/app/lib/sales-pause";
 
 export const dynamic = "force-dynamic";
 

@@ -30,6 +30,8 @@ import https from "https";
 // next/server (which isn't resolvable outside the Next.js build).
 import { TIERS } from "@/app/lib/checkout-tiers";
 import { SITE_URL } from "@/app/lib/site-url";
+// Sales pause (Craig 2026-10-01) — the one switch that stops checkout.
+import { salesPaused, salesPausedBody } from "@/app/lib/sales-pause";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
   createLimiter: (opts: { windowMs: number; maxRequests: number }) => {
@@ -39,12 +41,6 @@ const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
 };
 
 const _checkoutLimiter = createLimiter(PRESETS.checkout);
-// Sales pause (Craig 2026-10-01) — the one switch that stops checkout.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { salesPaused, salesPausedBody } = require("@/app/lib/sales-pause") as {
-  salesPaused: (env?: Record<string, string | undefined>) => boolean;
-  salesPausedBody: () => { error: string; code: string };
-};
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const BASE_URL = SITE_URL;
