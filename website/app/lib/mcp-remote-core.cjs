@@ -260,10 +260,10 @@ function createMcpCore({ apiBase = 'https://gatetest.io', fetchImpl = globalThis
   // by the MCP session id the transport hands us (falls back to the key).
   const lastScanBySession = new Map();
 
-  async function postJson(path, body, timeoutMs = 60_000) {
+  async function postJson(path, body, timeoutMs = 60_000, extraHeaders = {}) {
     const res = await fetchImpl(`${base}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -374,7 +374,7 @@ function createMcpCore({ apiBase = 'https://gatetest.io', fetchImpl = globalThis
       return toolText(lines.join('\n'));
     },
 
-    async fix_issue(args) {
+    async fix_issue(args, ctx) {
       const { repoUrl, file, issue, module: mod, line, githubToken } = args || {};
       if (!repoUrl || !file || !issue) return toolText('Error: repoUrl, file, and issue are all required', true);
       const body = {
@@ -384,7 +384,9 @@ function createMcpCore({ apiBase = 'https://gatetest.io', fetchImpl = globalThis
         ...(githubToken ? { customerPat: githubToken } : {}),
       };
       // The iterative fix loop is slow by design — generous timeout.
-      const { status, data } = await postJson('/api/scan/fix', body, 300_000);
+      // The subscription key is the payment proof on /api/scan/fix
+      // (mcp-fix-entitlement.js). Without it every paid call was a 402.
+      const { status, data } = await postJson('/api/scan/fix', body, 300_000, { Authorization: `Bearer ${ctx && ctx.key}` });
       if (status !== 200 || data.error) {
         return toolText(`fix_issue failed: ${data.error || `HTTP ${status}`}${status === 401 || status === 403 ? ' — check the githubToken has repo scope' : ''}`, true);
       }
@@ -466,7 +468,7 @@ function createMcpCore({ apiBase = 'https://gatetest.io', fetchImpl = globalThis
       const startedAt = now();
       let result;
       try {
-        result = await handler(args, { keyValid, sessionId });
+        result = await handler(args, { keyValid, sessionId, key });
       } catch (err) {
         result = toolText(`${name} failed: ${err && err.message ? err.message : String(err)}`, true);
       }
