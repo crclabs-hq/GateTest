@@ -167,7 +167,7 @@ function renderRegressionTests(fixes) {
  * @param {Object} opts
  * @param {string}  opts.path             Repo path the report was committed to.
  * @param {string}  [opts.riskLevel]      One of LOW / MODERATE / ELEVATED / HIGH / CRITICAL.
- * @param {Object}  [opts.complianceGaps] { owasp, soc2, cis } arrays from generateCisoReport.
+ * @param {Object}  [opts.complianceGaps] { owasp, cis } arrays from generateCisoReport.
  * @param {Object}  [opts.counts]         { Critical, High, Medium, Low } finding counts.
  * @param {boolean} [opts.failed]         True if generation failed; renders a graceful placeholder.
  * @returns {string}
@@ -182,7 +182,6 @@ function renderCisoReportSection({ path, riskLevel, complianceGaps, counts, fail
   }
   if (!path) return '';
   const owaspCount = complianceGaps && Array.isArray(complianceGaps.owasp) ? complianceGaps.owasp.length : 0;
-  const soc2Count = complianceGaps && Array.isArray(complianceGaps.soc2) ? complianceGaps.soc2.length : 0;
   const cisCount = complianceGaps && Array.isArray(complianceGaps.cis) ? complianceGaps.cis.length : 0;
   const risk = riskLevel || 'see report';
   const sevLine = counts
@@ -191,7 +190,7 @@ function renderCisoReportSection({ path, riskLevel, complianceGaps, counts, fail
   const lines = [
     '### Board-ready CISO report',
     '',
-    `Attached at \`${path}\` in this PR diff. Covers OWASP Top 10 2021 (${owaspCount} categories implicated), SOC2 Trust Service Criteria (${soc2Count} criteria implicated), CIS Controls v8 (${cisCount} controls implicated), and a 30/60/90-day remediation roadmap.`,
+    `Attached at \`${path}\` in this PR diff. Covers OWASP Top 10 2021 (${owaspCount} categories implicated), CIS Controls v8 (${cisCount} controls implicated), and a 30/60/90-day remediation roadmap.`,
     '',
     `Overall risk level: **${risk}**${sevLine ? ` — ${sevLine}` : ''}.`,
     '',

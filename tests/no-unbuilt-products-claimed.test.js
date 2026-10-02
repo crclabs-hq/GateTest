@@ -100,7 +100,7 @@ const ALLOWLIST = {
     { includes: "const VALID_TOPICS = new Set(['pentest']);", reason: 'topic id for the "Penetration Testing — coming soon" notify-me list; stores emails, sells nothing' },
   ],
   'website/app/lib/mcp-remote-modules.json': [
-    { includes: '(Pen Test tier — requires authorization)', transient: true, reason: 'GENERATED from src/modules descriptions by scripts/generate-mcp-remote-modules.js; the engine copy is corrected in a separate change (src/ is outside this one). Delete this entry once regenerated.' },
+    { includes: '(dormant — not run by any scan; reserved for a future penetration-testing product)', reason: 'generated from the five dormant src/modules/live-*.js probes; says they are NOT run and NOT sold' },
   ],
 };
 
