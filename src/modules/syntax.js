@@ -23,6 +23,36 @@ const { stripJsonc, isJsoncPath } = require('../core/jsonc');
 // the module's cost with its package count. See `_checkTypeScript`.
 const DEFAULT_TS_TIME_BUDGET_MS = 20_000;
 
+/**
+ * npm/yarn/bun `workspaces`, pnpm-workspace.yaml or lerna.json at the root.
+ * @param {string} projectRoot
+ */
+function isWorkspaceRoot(projectRoot) {
+  if (fs.existsSync(path.join(projectRoot, 'pnpm-workspace.yaml')) || fs.existsSync(path.join(projectRoot, 'lerna.json'))) return true;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf-8'));
+    const ws = pkg && pkg.workspaces;
+    return Array.isArray(ws) ? ws.length > 0 : Boolean(ws && Array.isArray(ws.packages) && ws.packages.length > 0);
+  } catch { return false; } // error-ok — no or unreadable package.json: not a workspace root
+}
+
+/**
+ * The project's OWN TypeScript compiler, nearest node_modules/.bin first
+ * (package, then up to the root). Never a downloaded one: bare `npx tsc`
+ * with nothing installed fetches whatever version the registry serves and
+ * type-checks the customer's code against a compiler they do not use.
+ */
+function tscCommand(dir, projectRoot) {
+  const bin = process.platform === 'win32' ? 'tsc.cmd' : 'tsc';
+  const stop = path.resolve(projectRoot);
+  for (let d = path.resolve(dir); ; d = path.dirname(d)) {
+    const candidate = path.join(d, 'node_modules', '.bin', bin);
+    if (fs.existsSync(candidate)) return JSON.stringify(candidate);
+    if (d === stop || path.dirname(d) === d) break;
+  }
+  return 'npx --no-install tsc';
+}
+
 class SyntaxModule extends BaseModule {
   constructor() {
     super('syntax', 'Syntax & Compilation Checks');
@@ -425,6 +455,19 @@ class SyntaxModule extends BaseModule {
     // inputs found" noise that drowns out real findings.
     const tscDirs = this._discoverRealTsconfigs(projectRoot);
 
+    // A workspace monorepo's root tsconfig is the shared BASE its packages
+    // extend, not a project: compiled from the root, every package loses
+    // its own `paths` / `jsx` / `types`. On Tallrig (audit 2026-10-02) that
+    // produced 1,699 "Cannot find module '~/lib/…'" errors while the repo's
+    // own per-package typecheck (95 tasks) was green. When member packages
+    // have their own real tsconfig, each is checked with it and the root
+    // compile is skipped (and said so). Hoisted workspaces keep a single
+    // node_modules at the root, so members may borrow it.
+    const workspaceRoot = isWorkspaceRoot(projectRoot);
+    const skipRootCompile = workspaceRoot && tscDirs.some((d) => d !== projectRoot);
+    const rootDepsInstalled = fs.existsSync(path.join(projectRoot, 'node_modules'));
+    let rootSkipped = false;
+
     let anyRan = false;
     let ranCount = 0;
     const allErrors = [];
@@ -457,12 +500,13 @@ class SyntaxModule extends BaseModule {
       // root); leaf packages without their own node_modules (vscode-extension/,
       // mcp-server stubs, etc.) are intentionally not type-checked here.
       const isRoot = dir === projectRoot;
+      if (isRoot && skipRootCompile) { rootSkipped = true; continue; }
       const hasOwnDeps = fs.existsSync(path.join(dir, 'node_modules'));
-      const inheritsRootDeps = isRoot && fs.existsSync(path.join(projectRoot, 'node_modules'));
+      const inheritsRootDeps = (isRoot || workspaceRoot) && rootDepsInstalled;
       if (!hasOwnDeps && !inheritsRootDeps) continue;
       anyRan = true;
       ranCount += 1;
-      const { exitCode, stdout, stderr } = this._exec('npx tsc --noEmit 2>&1', {
+      const { exitCode, stdout, stderr } = this._exec(`${tscCommand(dir, projectRoot)} --noEmit 2>&1`, {
         cwd: dir,
         timeout: 120000,
       });
@@ -478,6 +522,14 @@ class SyntaxModule extends BaseModule {
         const errors = output.split(/\r?\n/).filter(l => l.includes('error TS'));
         allErrors.push(...errors);
       }
+    }
+
+    if (rootSkipped) {
+      result.addCheck('typescript-strict:workspace-root', true, {
+        severity: 'info',
+        message: 'Root tsconfig.json is the shared base of a workspace monorepo — each package was type-checked ' +
+          'with its own tsconfig instead of compiling the whole tree from the root',
+      });
     }
 
     if (skippedDirs.length > 0) {
