@@ -99,6 +99,34 @@ describe('UnitTestsModule — an environment that cannot run the suite is not a 
   it('a real assertion failure is still a failure', () => {
     assert.strictEqual(mod._looksLikeMissingToolchain('AssertionError: expected 1 to equal 2\n  at test.js:12'), false);
   });
+
+  // Audit 2026-10-02: Tallrig's bun suite exited 1 with a real `(fail)`, but a
+  // PASSING test was named "ENOENT open → warn file-not-found", and the whole
+  // red suite was reported "Skipped — could not start" (passed).
+  it('a passing test whose NAME mentions ENOENT does not mask a failing suite', () => {
+    const tallrig = [
+      '@back-to-the-future/substrate:test: (pass) rules — stateless hits > ENOENT open → warn file-not-found [0.12ms]',
+      '@vapron/sentinel:test: (fail) self-freshness > reads the repo path [1.02ms]',
+      ' 1 fail',
+    ].join('\n');
+    assert.strictEqual(mod._looksLikeMissingToolchain(tallrig), false);
+  });
+  it('control: the same passing line next to a real missing binary is still a missing toolchain', () => {
+    const out = '(pass) handles ENOENT on open\n/bin/sh: 1: vitest: not found';
+    assert.strictEqual(mod._looksLikeMissingToolchain(out), true);
+  });
+  it('control: a passing test named after the toolchain error is not itself the signal', () => {
+    assert.strictEqual(mod._looksLikeMissingToolchain('ok 1 - throws Cannot find module for a bad path\n# pass 1\n# fail 0'), false);
+    assert.strictEqual(mod._looksLikeMissingToolchain('Error: Cannot find module \'left-pad\''), true);
+  });
+  it('per-test failure markers from every major runner beat a toolchain-looking line', () => {
+    for (const fail of ['--- FAIL: TestOpen (0.00s)', '  2 failing', 'Tests:       1 failed, 4 passed, 5 total', 'test result: FAILED. 3 passed; 1 failed', 'FAILED tests/test_io.py::test_open - FileNotFoundError', '  ✕ opens the file (3 ms)']) {
+      assert.strictEqual(mod._looksLikeMissingToolchain(`${fail}\nError: ENOENT: no such file or directory, open 'x'`), false, fail);
+    }
+  });
+  it('the "could not start" message names the toolchain line, never a passing test', () => {
+    assert.match(mod._firstLine('(pass) ENOENT open → warn\nsh: 1: jest: not found'), /jest: not found/);
+  });
   it('node --test is only chosen when the test dir holds JavaScript', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gt-ut-js-'));
     try {
