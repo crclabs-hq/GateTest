@@ -47,7 +47,7 @@ inputs:
     required: false
     default: '.'
   compliance:
-    description: 'When true, ALSO write the compliance evidence pack — every finding filed under OWASP Top 10 2021, SOC 2 Trust Services Criteria and CIS Controls v8, control by control, with the raw results and the signed provenance — to .gatetest/reports/gatetest-compliance-*.json and .md. A control is PASS only when a mapped module ran and found nothing; "not checked" is printed, never hidden. Upload .gatetest/reports as an artifact to keep it.'
+    description: 'When true, ALSO write the compliance evidence pack — every finding filed under OWASP Top 10 2021 and CIS Controls v8, control by control, with the raw results and the signed provenance — to .gatetest/reports/gatetest-compliance-*.json and .md. A control is PASS only when a mapped module ran and found nothing; "not checked" is printed, never hidden. Upload .gatetest/reports as an artifact to keep it.'
     required: false
     default: 'false'
   report-format:

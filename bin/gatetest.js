@@ -279,7 +279,7 @@ const HELP = `
                        live API ping from --doctor. The summary and the signed
                        provenance record it. Same as GATETEST_OFFLINE=1.
     --compliance       Write the compliance evidence pack: findings filed
-                       under OWASP Top 10 / SOC 2 / CIS Controls, control by
+                       under OWASP Top 10 2021 / CIS Controls v8, control by
                        control, with the raw results and the signed
                        provenance (.gatetest/reports/gatetest-compliance-*).
                        A control is PASS only when a mapped module ran and

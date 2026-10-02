@@ -10,7 +10,9 @@
  * Heuristic: if a request that returned 401/403 without bypass headers
  * returns 200 with them, that's a likely bypass.
  *
- * Pen Test tier — requires authorization-gate consent.
+ * Dormant — not run by any scan (registered, in no suite). Reserved for a
+ * future, separate penetration-testing product (Craig 2026-10-01: not sold
+ * today). Requires authorization-gate consent before any payload is sent.
  */
 
 'use strict';
@@ -32,7 +34,7 @@ class LiveAuthBypassModule extends BaseModule {
   constructor() {
     super(
       'liveAuthBypass',
-      'Live auth-bypass probe — tests if injected headers grant unauthenticated access (Pen Test tier — requires authorization)',
+      'Live auth-bypass probe — tests if injected headers grant unauthenticated access (dormant — not run by any scan; reserved for a future penetration-testing product)',
     );
   }
 

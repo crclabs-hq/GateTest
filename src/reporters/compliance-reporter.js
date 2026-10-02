@@ -1,7 +1,8 @@
 'use strict';
 /**
  * Compliance Reporter — writes the compliance evidence pack (`--compliance`):
- * the run's findings filed under OWASP / SOC 2 / CIS control by control, the
+ * the run's findings filed under OWASP Top 10 / CIS Controls control by
+ * control (no SOC 2 — a future, separate product, Craig 2026-10-01), the
  * raw results behind them, and the same provenance + signature every JSON
  * report carries (move 21), so `gatetest verify-report` proves the pack was
  * not edited after the scan. The tables come from src/core/compliance-
@@ -59,7 +60,7 @@ class ComplianceReporter {
       const t = evidence.totals;
       const line = (k) => `${t[k].pass} pass / ${t[k].fail} fail / ${t[k].warn} warn / ${t[k]['not-checked']} not checked`;
       console.log(`\n  [GateTest] Compliance evidence: ${path.relative(this.config.projectRoot, mdPath)}`);
-      console.log(`  OWASP ${line('owasp')} · SOC 2 ${line('soc2')} · CIS ${line('cis')}${signature && signature.signature ? ' · signed' : ' · unsigned'}`);
+      console.log(`  OWASP ${line('owasp')} · CIS ${line('cis')}${signature && signature.signature ? ' · signed' : ' · unsigned'}`);
     }
   }
 }
