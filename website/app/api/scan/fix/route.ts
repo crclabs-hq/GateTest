@@ -60,6 +60,18 @@ const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
 };
 
 const _scanFixLimiter = createLimiter(PRESETS.scanFix);
+import { getDb } from "@/app/lib/db";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { verifyMcpFixEntitlement } = require("@/app/lib/mcp-fix-entitlement") as {
+  verifyMcpFixEntitlement: (deps: { headers: Headers; sql: unknown; findByApiKey: unknown }) => Promise<
+    | { state: "none" }
+    | { state: "active"; customerEmail: string | null; subscriptionId: string | null }
+    | { state: "inactive" }
+    | { state: "not_checked"; reason: string }
+  >;
+};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { findByApiKey } = require("@/app/lib/mcp-subscription-store") as { findByApiKey: unknown };
 // Phase 1 of THE FIX-FIRST BUILD PLAN — N-attempt iterative loop with
 // structured per-attempt logging. The loop carries forward each previous
 // failure into the next prompt so Claude sees its own mistake. Pure JS
@@ -1261,7 +1273,32 @@ export async function POST(req: NextRequest) {
   let ledgerEmail: string | null = null;
   let ledgerStripeCustomerId: string | null = null;
   const isAdmin = isAdminRequest(req);
-  if (!isAdmin) {
+  // Hosted-MCP subscribers ($29/mo) pay by key, not by checkout session:
+  // the MCP server forwards `Authorization: Bearer gtmcp_…`. An entitled key
+  // runs the Full-tier fix (never a higher tier than the subscription sells).
+  let mcpSubscriptionId: string | null = null;
+  const mcpEntitlement = isAdmin ? { state: "none" as const } : await verifyMcpFixEntitlement({
+    headers: req.headers,
+    sql: process.env.DATABASE_URL ? getDb() : null,
+    findByApiKey,
+  });
+  if (mcpEntitlement.state === "inactive") {
+    return NextResponse.json(
+      { error: "This GateTest MCP key has no active subscription — renew at https://gatetest.io/mcp" },
+      { status: 402 },
+    );
+  }
+  if (mcpEntitlement.state === "not_checked") {
+    return NextResponse.json(
+      { error: `MCP subscription could not be verified right now (${mcpEntitlement.reason}) — not charged, try again` },
+      { status: 503 },
+    );
+  }
+  if (mcpEntitlement.state === "active") {
+    ledgerEmail = mcpEntitlement.customerEmail;
+    mcpSubscriptionId = mcpEntitlement.subscriptionId;
+    input.tier = "full";
+  } else if (!isAdmin) {
     const paymentCheck = await verifyFixPayment(input.sessionId);
     if (!paymentCheck.ok) {
       return paymentCheck.response;
@@ -2105,7 +2142,7 @@ export async function POST(req: NextRequest) {
       accountKey: resolveAccountKey({
         email: ledgerEmail,
         stripeCustomerId: ledgerStripeCustomerId,
-        checkoutSessionId: input.sessionId,
+        checkoutSessionId: input.sessionId || mcpSubscriptionId,
         fallback: isAdmin ? "admin" : null,
       }),
       surface: "hosted-fix",
@@ -2799,7 +2836,7 @@ export async function POST(req: NextRequest) {
           accountKey: resolveAccountKey({
             email: ledgerEmail,
             stripeCustomerId: ledgerStripeCustomerId,
-            checkoutSessionId: input.sessionId,
+            checkoutSessionId: input.sessionId || mcpSubscriptionId,
             fallback: isAdmin ? "admin" : null,
           }),
           surface: "hosted-fix",
