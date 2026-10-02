@@ -211,21 +211,28 @@ describe('tier passthrough — route still gates scan_fix-only features on input
     assert.match(src, /tier\?:\s*string/, 'route should declare optional tier on input');
   });
 
-  it('architecture annotator gated on tier === "scan_fix"', () => {
+  // 2026-10-02: Forensic is sold as "Everything in Scan + Fix, PLUS …", so
+  // the $199 extras run for scan_fix AND nuclear — never for quick/full.
+  it('the $199 extras gate is exactly scan_fix or nuclear', () => {
+    const src = fs.readFileSync(routePath, 'utf8');
+    assert.match(src, /const includesScanFixExtras = input\.tier === "scan_fix" \|\| input\.tier === "nuclear";/);
+  });
+
+  it('architecture annotator gated on the scan_fix/nuclear extras', () => {
     const src = fs.readFileSync(routePath, 'utf8');
     assert.match(
       src,
-      /input\.tier\s*===\s*["']scan_fix["'][\s\S]*?annotateArchitecture/,
-      'architecture annotator must be gated on input.tier === "scan_fix"',
+      /if \(includesScanFixExtras && [\s\S]*?annotateArchitecture/,
+      'architecture annotator must be gated on includesScanFixExtras',
     );
   });
 
-  it('pair-review gated on tier === "scan_fix"', () => {
+  it('pair-review gated on the scan_fix/nuclear extras', () => {
     const src = fs.readFileSync(routePath, 'utf8');
     assert.match(
       src,
-      /input\.tier\s*===\s*["']scan_fix["'][\s\S]*?runPairReview/,
-      'pair-review must be gated on input.tier === "scan_fix"',
+      /if \(includesScanFixExtras\) \{[\s\S]*?runPairReview/,
+      'pair-review must be gated on includesScanFixExtras',
     );
   });
 
