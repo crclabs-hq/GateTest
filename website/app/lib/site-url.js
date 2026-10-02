@@ -38,19 +38,6 @@
 const DEFAULT_SITE_URL = 'https://gatetest.io';
 
 /**
- * Former public hosts that must keep answering forever, as a permanent
- * redirect to the canonical origin with the path kept (next.config.ts).
- *
- * gatetest.ai was the domain until 2026-07-30, then dropped into registry
- * redemption and went NXDOMAIN. Craig re-registered it at name.com on
- * 2026-10-02 (expires 2028-10-02). Customers' READMEs still embed badge
- * URLs on it that we can never edit — a dead host breaks every one of those
- * images, and a host someone else owns serves images inside our customers'
- * repos. Bare hosts, not URLs: nothing may LINK to them, only redirect away.
- */
-const LEGACY_SITE_HOSTS = Object.freeze(['gatetest.ai']);
-
-/**
  * Normalise an origin: add https:// if the scheme is missing, drop any
  * trailing slash, drop any path.
  *
@@ -194,7 +181,6 @@ function badgeUrl(path = '') {
 
 module.exports = {
   DEFAULT_SITE_URL,
-  LEGACY_SITE_HOSTS,
   SITE_URL,
   BADGE_ORIGIN,
   SUPPORT_EMAIL,

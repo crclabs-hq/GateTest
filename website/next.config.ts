@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+import { LEGACY_SITE_HOSTS } from "./app/lib/legacy-site-hosts.js";
 
 // Treat the REPO root (one level above this file) as the build / tracing
 // root so `@lib/*` aliases that point at `../lib/*` resolve correctly.
@@ -33,10 +34,8 @@ const CLI_ENGINE_ROUTES = [
 // runtime code). `www.` is not a second site: the proxy in front of the box
 // forwards both hosts to this process, so the redirect has to live here.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { DEFAULT_SITE_URL, LEGACY_SITE_HOSTS } = require("./app/lib/site-url.js") as {
-  DEFAULT_SITE_URL: string;
-  LEGACY_SITE_HOSTS: readonly string[];
-};
+const { DEFAULT_SITE_URL } = require("./app/lib/site-url.js") as { DEFAULT_SITE_URL: string };
+
 const siteOrigin = new URL(process.env.NEXT_PUBLIC_BASE_URL || DEFAULT_SITE_URL);
 
 // URLs people guess that never existed here. Each target was checked live
@@ -102,7 +101,7 @@ const nextConfig: NextConfig = {
         destination: `${siteOrigin.origin}/:path*`,
         permanent: true,
       },
-      // Former domains (lib/site-url.js LEGACY_SITE_HOSTS), apex and www →
+      // Former domains (lib/legacy-site-hosts.js), apex and www →
       // the canonical origin, permanent, path and query preserved — the
       // badge URLs in customers' READMEs keep rendering. 308 keeps the
       // method, so an old API client's POST is not turned into a GET.
