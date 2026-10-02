@@ -56,6 +56,9 @@ const EXCLUDED_PATHS = [
 // offending line. `transient` entries are owned by another change and may
 // disappear without this test failing on a stale entry.
 const ALLOWLIST = {
+  'website/app/data/changelog.json': [
+    { includes: '"title":"fix(honesty): stop selling SOC 2 output and pen testing we do not provide"', reason: 'generated changelog quotes the title of PR #883, the change that REMOVED these claims; it says we do not provide them' },
+  ],
   'website/app/trust/trust-content.ts': [
     { includes: 'Claim a certification we do not hold. There is no SOC 2, ISO 27001 or penetration-test report today', reason: 'trust page: states we hold NO SOC 2 / pen-test report' },
   ],
