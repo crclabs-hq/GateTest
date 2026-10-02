@@ -65,6 +65,8 @@ const CLASS_RULES = {
   'removed-resource-still-routes': ['soft-state-unfiltered'],
   'identifier-as-credential': ['identifier-as-credential'],
   'fail-open-auth': ['deny-list-status', 'key-door-owner-unchecked'],
+  'retired-host-record': ['hardcoded-dns-target'],
+  'retired-host-literal': ['hardcoded-tenant-domain'],
   'soft-delete-keeps-access': ['suspend-keeps-keys'],
 };
 
