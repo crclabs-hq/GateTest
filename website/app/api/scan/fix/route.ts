@@ -61,17 +61,8 @@ const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
 
 const _scanFixLimiter = createLimiter(PRESETS.scanFix);
 import { getDb } from "@/app/lib/db";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { verifyMcpFixEntitlement } = require("@/app/lib/mcp-fix-entitlement") as {
-  verifyMcpFixEntitlement: (deps: { headers: Headers; sql: unknown; findByApiKey: unknown }) => Promise<
-    | { state: "none" }
-    | { state: "active"; customerEmail: string | null; subscriptionId: string | null }
-    | { state: "inactive" }
-    | { state: "not_checked"; reason: string }
-  >;
-};
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { findByApiKey } = require("@/app/lib/mcp-subscription-store") as { findByApiKey: unknown };
+import { verifyMcpFixEntitlement } from "@/app/lib/mcp-fix-entitlement";
+import { findByApiKey } from "@/app/lib/mcp-subscription-store";
 // Phase 1 of THE FIX-FIRST BUILD PLAN — N-attempt iterative loop with
 // structured per-attempt logging. The loop carries forward each previous
 // failure into the next prompt so Claude sees its own mistake. Pure JS
