@@ -48,7 +48,7 @@ describe('security module — file-scan time budget', () => {
     const mod = new SecurityModule();
     const result = makeResult();
     // Negative timeBudgetMs = already expired before the first file-scanning
-    // check runs, forcing every one of the six to be skipped deterministically.
+    // check runs, forcing every one of the seven to be skipped deterministically.
     const config = { projectRoot: tmp, getModuleConfig: (name) => (name === 'security' ? { fileScanTimeBudgetMs: -1 } : {}) };
     await mod.run(result, config);
 
@@ -56,8 +56,8 @@ describe('security module — file-scan time budget', () => {
     assert.ok(budgetCheck, 'an exhausted budget must be disclosed as security:budget');
     assert.strictEqual(budgetCheck.passed, true, 'a budget cut must never block the gate');
     assert.strictEqual(budgetCheck.severity, 'info', 'a budget cut is informational, not an error');
-    assert.match(budgetCheck.message, /budget cut after 0\/6 checks/, 'must say exactly how many of the six checks ran');
-    for (const label of ['source patterns', 'SQL injection', 'weak password hashing', 'prototype pollution', 'path traversal', 'secret scan']) {
+    assert.match(budgetCheck.message, /budget cut after 0\/7 checks/, 'must say exactly how many of the seven checks ran');
+    for (const label of ['source patterns', 'SQL injection', 'weak password hashing', 'prototype pollution', 'path traversal', 'secret scan', 'credential exposure']) {
       assert.ok(budgetCheck.message.includes(label), `skipped checks must be named: missing "${label}"`);
     }
     // Never a fake pass: the three scans that normally print a clean-summary
