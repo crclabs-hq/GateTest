@@ -19,6 +19,7 @@
 // Last verified: 2026-05-27 (122 modules).
 
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
+import siteStats from "@/app/data/site-stats.json";
 
 /**
  * The number GateTest publishes. Computed at module-load time from the
@@ -27,3 +28,15 @@ import { totalModuleCount } from "@/app/components/howitworks/modules-data";
  * source of truth — fix the catalogue, the website auto-updates.
  */
 export const TOTAL_MODULES: number = totalModuleCount();
+
+/**
+ * How many modules the hosted $99 Full Scan (and Scan + Fix) actually runs:
+ * the engine's `full` suite (website/app/lib/scan-engine-dispatch.ts). It is
+ * NOT TOTAL_MODULES — live-URL, WordPress and mutation modules need a
+ * deployed site or a CI runner, and the dormant live probes run in no suite
+ * (Craig 2026-10-01: "fix the full scan 122 modules wording").
+ *
+ * Generated: scripts/generate-site-stats.js counts the suite from a real
+ * `gatetest --list` run into website/app/data/site-stats.json.
+ */
+export const FULL_SCAN_MODULES: number = siteStats.suites.full;

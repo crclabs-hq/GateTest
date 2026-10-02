@@ -13,6 +13,12 @@
  * sales language). Customers can tell when an AI is shilling.
  */
 
+// Generated counts (scripts/generate-site-stats.js): the hosted Full Scan
+// runs the engine's `full` suite, not every module the engine has.
+const SITE_STATS = require('../data/site-stats.json');
+const FULL_SCAN_MODULES = SITE_STATS.suites.full;
+const TOTAL_ENGINE_MODULES = SITE_STATS.modules.total;
+
 const PRODUCT_FACTS = `
 ## What GateTest is
 
@@ -29,7 +35,9 @@ it found using its AI fix engine.
   Fast feedback. Best for first-time scans.
 
 - Full Scan: $99 one-shot
-  All 122 modules — security, supply chain, auth, CI hardening,
+  Every module that applies to a repository — ${FULL_SCAN_MODULES} of the
+  ${TOTAL_ENGINE_MODULES} (live-site and WordPress modules need a deployed site;
+  mutation + chaos run via the GitHub Action) — security, supply chain, auth, CI hardening,
   AI review. Scan-only (auto-fix PRs start at the Scan + Fix tier).
 
 - Scan + Fix: $199 one-shot

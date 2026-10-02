@@ -2,7 +2,7 @@
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
 import PageHero from "../../components/site/PageHero";
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
@@ -42,7 +42,7 @@ const faqItems = [
   },
   {
     q: "How does GateTest pricing compare to Snyk?",
-    a: `Snyk charges per developer seat per month — pricing scales with headcount and enterprise contracts can reach thousands monthly. GateTest charges per scan: $99 for all ${TOTAL_MODULES} modules. No seat licensing, no annual contracts, no per-developer billing. A 100-person team pays the same per scan as a solo developer.`,
+    a: `Snyk charges per developer seat per month — pricing scales with headcount and enterprise contracts can reach thousands monthly. GateTest charges per scan: $99 for every module that applies to a repository (${FULL_SCAN_MODULES} of the ${TOTAL_MODULES}). No seat licensing, no annual contracts, no per-developer billing. A 100-person team pays the same per scan as a solo developer.`,
   },
   {
     q: "Does GateTest include AI-app safety scanning?",
@@ -213,7 +213,7 @@ export default function SnykPage() {
               },
               {
                 title: `One bill, ${TOTAL_MODULES} modules`,
-                body: `Snyk's seat-based pricing means security costs scale with team size. GateTest is $99 for all ${TOTAL_MODULES} modules per scan. Run it daily on a 100-person team or run it once before a major release — the price is the same.`,
+                body: `Snyk's seat-based pricing means security costs scale with team size. GateTest is $99 for every module that applies to a repository (${FULL_SCAN_MODULES} of the ${TOTAL_MODULES}) per scan. Run it daily on a 100-person team or run it once before a major release — the price is the same.`,
               },
             ].map((card) => (
               <div

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import ComparisonReviewed from "@/app/components/ComparisonReviewed";
 import PageHero from "../../components/site/PageHero";
-import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TOTAL_MODULES, FULL_SCAN_MODULES } from "@/app/lib/module-count";
 import { NonceScript } from "@/app/lib/seo/NonceScript";
 
 export const metadata: Metadata = {
@@ -46,7 +46,7 @@ const faqItems = [
   },
   {
     q: "How do scan speeds compare?",
-    a: `GateTest quick scans (4 modules) complete in seconds. Full ${TOTAL_MODULES}-module scans typically complete in a few minutes, depending on repo size. DeepSource runs asynchronously in the background and varies widely by repo size. GateTest gives you synchronous results within the CI timeout window — no waiting for background workers.`,
+    a: `GateTest quick scans (4 modules) complete in seconds. Full scans (the ${FULL_SCAN_MODULES}-module repository suite) typically complete in a few minutes, depending on repo size. DeepSource runs asynchronously in the background and varies widely by repo size. GateTest gives you synchronous results within the CI timeout window — no waiting for background workers.`,
   },
   {
     q: "Does GateTest cover the same languages as DeepSource?",
@@ -191,7 +191,7 @@ export default function DeepSourcePage() {
               },
               {
                 title: "Pay for what you use",
-                body: `DeepSource charges a monthly subscription per seat. A 10-person team might run 5 scans a month or 500 — the bill is the same. GateTest charges per result: $99 for all ${TOTAL_MODULES} modules per scan. Scan before releases, scan after major features, scan daily — you control the spend.`,
+                body: `DeepSource charges a monthly subscription per seat. A 10-person team might run 5 scans a month or 500 — the bill is the same. GateTest charges per result: $99 per scan for every module that applies to a repository (${FULL_SCAN_MODULES} of the ${TOTAL_MODULES}). Scan before releases, scan after major features, scan daily — you control the spend.`,
               },
               {
                 title: "Coverage beyond code quality",
