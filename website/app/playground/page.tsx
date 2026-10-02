@@ -8,6 +8,7 @@ import { SITE_URL, badgeUrl } from "@/app/lib/site-url";
 import { Hero, Section } from "../components/v2";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import { SAMPLE_REPORT_URL } from "@/app/lib/sample-report";
+import { useSalesStatus } from "@/app/components/useSalesStatus";
 
 // One definition of the honesty formatting shared with the two API routes
 // (Doctrine #4) — the server-time headline (N3/F3) so a 0.1s engine number is
@@ -385,6 +386,9 @@ function TerminalWindow({ lines, scanning }: { lines: TerminalLine[]; scanning: 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function PlaygroundPage() {
+  // Sales paused (lib/sales-pause.js): no paid upgrade links while nothing is on sale.
+  const salesStatus = useSalesStatus();
+  const salesPaused = Boolean(salesStatus && salesStatus.paused);
   const [url, setUrl]             = useState("");
   const [scanning, setScanning]   = useState(false);
   const [result, setResult]       = useState<ScanResult | null>(null);
@@ -801,7 +805,7 @@ export default function PlaygroundPage() {
                                 push to this repository. Everyone else gets the
                                 sign-in link, or nothing. `viewer` is resolved
                                 server-side from the session cookie. */}
-                            {!isSharedView && result.viewer?.canFix && (
+                            {!isSharedView && !salesPaused && result.viewer?.canFix && (
                               <Link
                                 href={`/checkout?tier=scan_fix&repo=${encodeURIComponent(result.repo_url)}&module=${encodeURIComponent(f.module)}`}
                                 className="btn-secondary shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
@@ -835,6 +839,10 @@ export default function PlaygroundPage() {
                       secret rotation age, PR size enforcement, and {totalModuleCount() - QUICK_MODULES.length} more battle-tested checks.
                     </p>
                   </div>
+                  {salesPaused ? (
+                    <p role="status" className="text-sm text-foreground-secondary">{salesStatus?.message}</p>
+                  ) : (
+                  <>
                   <div className="flex flex-wrap gap-3">
                     <Link
                       href={`/checkout?tier=full&repo=${encodeURIComponent(result.repo_url)}`}
@@ -858,6 +866,8 @@ export default function PlaygroundPage() {
                   <p className="text-xs text-muted">
                     One-time payment · Never auto-renews · Results in minutes
                   </p>
+                  </>
+                  )}
                   <p className="text-xs text-muted">
                     Not sure what a full report looks like?{" "}
                     <a

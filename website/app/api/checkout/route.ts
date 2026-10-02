@@ -39,6 +39,12 @@ const { createLimiter, PRESETS } = require("@lib/rate-limit") as {
 };
 
 const _checkoutLimiter = createLimiter(PRESETS.checkout);
+// Sales pause (Craig 2026-10-01) — the one switch that stops checkout.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { salesPaused, salesPausedBody } = require("@/app/lib/sales-pause") as {
+  salesPaused: (env?: Record<string, string | undefined>) => boolean;
+  salesPausedBody: () => { error: string; code: string };
+};
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const BASE_URL = SITE_URL;
@@ -90,6 +96,11 @@ function stripeRequest(
 }
 
 export async function POST(req: NextRequest) {
+  // First line, before the body, the rate limiter or Stripe: while sales are
+  // paused no Checkout Session can be created by any caller.
+  if (salesPaused()) {
+    return NextResponse.json(salesPausedBody(), { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
   if (!STRIPE_SECRET_KEY) {
     return NextResponse.json(
       { error: "Payments not configured yet" },
@@ -253,6 +264,7 @@ export async function GET() {
       modules: tier.modules,
       description: tier.description,
     })),
+    salesPaused: salesPaused(),
     paymentModel: "per-scan-upfront",
     note: "Scan tiers are one-time payments charged at checkout — no auto-renew. The Continuous ($49/month) and MCP ($29/month) tiers are subscriptions (cancel anytime). Refunds discretionary — contact support if a scan fails to start or crashes mid-way.",
   });

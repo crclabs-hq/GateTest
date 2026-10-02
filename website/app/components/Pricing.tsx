@@ -3,6 +3,7 @@
 // Pricing tiers mirror the checkout backend exactly — website/app/api/checkout/route.ts TIERS.
 // Source of truth for prices: that TIERS map. Keep these in sync (Bible Forbidden #17).
 //   quick $29 · full $99 · scan_fix $199 · nuclear/Forensic $399 (one-time) · continuous $49/mo · mcp $29/mo
+import { useSalesStatus } from "./useSalesStatus";
 import { useState } from "react";
 // Wire the count to the catalogue rather than typing it — these cards said
 // "88 modules" for the $99 tier while the engine shipped 121, understating
@@ -150,6 +151,7 @@ function TierCard({
   popular = false,
   badge,
   needsRepo,
+  paused = false,
 }: {
   name: string;
   price: string;
@@ -161,6 +163,8 @@ function TierCard({
   popular?: boolean;
   badge?: string;
   needsRepo: boolean;
+  /** Sales paused (lib/sales-pause.js): no buy button, say so instead. */
+  paused?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [repo, setRepo] = useState("");
@@ -230,6 +234,11 @@ function TierCard({
       )}
       {error && <p className="text-[var(--danger)] text-xs mb-2">{error}</p>}
 
+      {paused ? (
+        <p className="w-full py-3 rounded-xl text-center font-semibold text-sm bg-[var(--background-alt)] text-[var(--foreground-secondary)] border border-[var(--border)]">
+          Not on sale yet
+        </p>
+      ) : (
       <button
         onClick={go}
         disabled={busy}
@@ -241,11 +250,14 @@ function TierCard({
       >
         {busy ? "Starting…" : expanded && needsRepo ? "Continue to checkout" : cta}
       </button>
+      )}
     </div>
   );
 }
 
 export default function Pricing() {
+  const sales = useSalesStatus();
+  const paused = Boolean(sales && sales.paused);
   return (
     <section id="pricing" className="max-w-7xl mx-auto my-16 px-4">
       <h2 className="text-3xl md:text-4xl font-semibold mb-2 text-center text-[var(--foreground)] tracking-tight">
@@ -259,10 +271,16 @@ export default function Pricing() {
         . Quick and Full below run the same scan on our infra: zero setup, a shareable hosted report, nothing to install. Pay per run for auto-fix and deeper AI analysis, or subscribe for continuous protection.
       </p>
 
+      {paused && (
+        <div role="status" className="max-w-3xl mx-auto mb-8 rounded-xl border border-[var(--border-strong)] bg-[var(--background-alt)] px-5 py-4 text-sm text-[var(--foreground)] text-center leading-relaxed">
+          {sales?.message}
+        </div>
+      )}
+
       {/* One-time scan tiers */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch">
         {pricingScans.map((plan) => (
-          <TierCard key={plan.tier} {...plan} needsRepo />
+          <TierCard key={plan.tier} {...plan} needsRepo paused={paused} />
         ))}
       </div>
 
@@ -276,11 +294,13 @@ export default function Pricing() {
           period={mcpPlan.frequency}
           badge="MCP Integration"
           needsRepo={false}
+          paused={paused}
         />
         <TierCard
           {...continuousPlan}
           period={continuousPlan.frequency}
           needsRepo
+          paused={paused}
         />
       </div>
 

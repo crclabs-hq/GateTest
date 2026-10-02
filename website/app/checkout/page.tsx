@@ -20,7 +20,7 @@ function formatPrice(cents: number, recurring?: boolean): string {
 export default function CheckoutPage() {
   const [tier, setTier] = useState<string>("");
   const [repoUrl, setRepoUrl] = useState<string>("");
-  const [phase, setPhase] = useState<"init" | "redirecting" | "form" | "error">("init");
+  const [phase, setPhase] = useState<"init" | "redirecting" | "form" | "error" | "paused">("init");
   const [error, setError] = useState<string>("");
   const started = useRef(false);
 
@@ -40,9 +40,15 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as { checkoutUrl?: string; error?: string };
+      const data = (await res.json()) as { checkoutUrl?: string; error?: string; code?: string };
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
+        return;
+      }
+      // Sales paused (lib/sales-pause.js): not an error to retry — say so.
+      if (data.code === "sales_paused") {
+        setError(data.error || "");
+        setPhase("paused");
         return;
       }
       setError(data.error || "Could not start checkout. Please try again.");
@@ -127,6 +133,15 @@ export default function CheckoutPage() {
               Payment is taken securely by Stripe; card details never touch our servers.
             </p>
           </form>
+        )}
+
+        {phase === "paused" && (
+          <div role="status">
+            <p className="text-sm text-[var(--v2-fg)] mb-6 leading-relaxed">{error}</p>
+            <Link href="/" className="v2-btn v2-btn-primary w-full justify-center">
+              Run the free scan
+            </Link>
+          </div>
         )}
 
         {phase === "error" && (
