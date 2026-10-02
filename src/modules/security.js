@@ -28,6 +28,7 @@ const { repoRelative } = require('../core/repo-path');
 const { literalKindAt } = require('../core/source-strip');
 const { scanDisclosure } = require('../core/disclosure-rules');
 const { isTestPath } = require('../core/test-paths');
+const { peerMetaDrift, cspEvalConflict } = require('../core/project-config-rules');
 // The published-example list lives with the module that owns the doctrine
 // (secrets.js PUBLISHED_EXAMPLE_CREDENTIALS) — one list, two rules.
 const { PUBLISHED_EXAMPLE_CREDENTIALS } = require('./secrets');
@@ -889,6 +890,7 @@ class SecurityModule extends BaseModule {
    */
   _checkDisclosure(projectRoot, result) {
     const SCANNER_PATH_RE = /(?:^|\/)(?:src\/modules|src\/core|tests)\//;
+    const configTexts = [];
     for (const file of this._collectFiles(projectRoot, JS_SOURCE_EXTS)) {
       const relPath = repoRelative(projectRoot, file);
       // Tests plant these shapes on purpose (a fake secret, a fixture error
@@ -896,6 +898,7 @@ class SecurityModule extends BaseModule {
       if (SCANNER_PATH_RE.test(relPath.replace(/\\/g, '/')) || isTestPath(relPath)) continue;
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
+      configTexts.push({ relPath, content });
       for (const f of scanDisclosure(relPath, content)) {
         result.addCheck(`security:${f.rule}:${relPath}:${f.line}`, false, {
           file: relPath,
@@ -903,6 +906,23 @@ class SecurityModule extends BaseModule {
           severity: f.severity,
           message: f.message,
           suggestion: f.suggestion,
+        });
+      }
+    }
+    // Cross-file contradictions (src/core/project-config-rules.js).
+    for (const f of cspEvalConflict(configTexts)) {
+      result.addCheck(`security:${f.rule}:${f.relPath}:${f.line}`, false, {
+        file: f.relPath, line: f.line, severity: f.severity, message: f.message, suggestion: f.suggestion,
+      });
+    }
+    for (const file of this._collectFiles(projectRoot, ['.json'])) {
+      if (path.basename(file) !== 'package.json') continue;
+      const relPath = repoRelative(projectRoot, file);
+      let text;
+      try { text = fs.readFileSync(file, 'utf-8'); } catch { continue; }
+      for (const f of peerMetaDrift(relPath, text)) {
+        result.addCheck(`security:${f.rule}:${relPath}:${f.line}`, false, {
+          file: relPath, line: f.line, severity: f.severity, message: f.message, suggestion: f.suggestion,
         });
       }
     }

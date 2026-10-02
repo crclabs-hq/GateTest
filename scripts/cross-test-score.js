@@ -55,12 +55,27 @@ const CLASS_RULES = {
   'swallowed-destructive-failure': ['errorSwallow', 'error-swallow'],
   'secret-in-url-query': ['url-credential', 'urlCredential'],
   'env-name-leak-in-error': ['error-detail-leak', 'errorDetailLeak'],
-  'csp-eval-dependency': ['csp-eval', 'cspEval'],
+  'csp-eval-dependency': ['csp-eval-conflict'],
   'weak-kdf-shared-secret': ['weak-kdf', 'weakKdf'],
   'vendor-text-leak': ['upstream-error-leak'],
+  'insecure-default-plan-tier': ['insecure-default-tier'],
+  'lockfile-manifest-drift': ['peer-meta-drift'],
 };
 
 const SEP_RE = /^\s*(?:\/\/|--|#)\s*\.\.\.\s*([^\s:]+\.[\w]+):(\d+)\s*$/;
+
+// A JSON snippet cut from inside the root object (`  "dependencies": {…`)
+// is not a document; put the root brace back so the file parses the way the
+// real one does. Only when the fragment does not already parse.
+function parsesAsJson(text) {
+  try { JSON.parse(text); return true; } catch { return false; }
+}
+
+function rebuildFragment(file, content) {
+  if (!/\.json$/.test(file) || parsesAsJson(content)) return content;
+  const wrapped = `{\n${content}`;
+  return parsesAsJson(wrapped) ? wrapped : content;
+}
 
 /** Split a snippet into files at its `// ... path:line` separators. Pure. */
 function splitSnippet(snippet, primaryFile) {
@@ -74,7 +89,7 @@ function splitSnippet(snippet, primaryFile) {
   }
   return [...files.entries()]
     .filter(([, lines]) => lines.some((l) => l.trim()))
-    .map(([file, lines]) => ({ file, content: `${lines.join('\n')}\n` }));
+    .map(([file, lines]) => ({ file, content: rebuildFragment(file, `${lines.join('\n')}\n`) }));
 }
 
 function relevant(issues, files) {

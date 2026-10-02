@@ -659,6 +659,29 @@ auth.post("/login/2fa", async (c) => {
   });
 });
 
+describe('CrossFileTaintModule — CONTROL PAIR: an allowlist membership guard before the sink', () => {
+  const handler = (guard) => ({
+    'web.ts': `
+web.post("/:owner/:repo/branches/delete", async (c) => {
+  const branchName = c.req.query("branch");
+  const branches = await listBranches(owner, repo);
+${guard}
+  const proc = spawn("git", ["branch", "-D", branchName]);
+});
+`,
+  });
+  it('quiet: if (!branches.includes(branchName)) return … before spawn', async () => {
+    const result = await run(handler('  if (!branches.includes(branchName)) {\n    return c.redirect("/x?error=Branch+not+found");\n  }'));
+    assert.strictEqual(result.errors().filter((e) => e.sink === 'spawn').length, 0);
+  });
+  it('STILL FIRES: no guard, a guard on a different variable, or a guard that does not leave', async () => {
+    for (const guard of ['', '  if (!branches.includes(other)) return c.text("no", 404);', '  if (!branches.includes(branchName)) console.warn("unknown branch");']) {
+      const result = await run(handler(guard));
+      assert.ok(result.errors().filter((e) => e.sink === 'spawn').length > 0, guard || '(no guard)');
+    }
+  });
+});
+
 describe('CrossFileTaintModule — CONTROL PAIR (#771 GT-03): a negated verify-guard earlier in the same handler', () => {
   it('quiet: the customer line — `if (!verifyTrackedUrl(emailId, targetUrl, sig)) return 400` twenty lines above c.redirect(targetUrl)', async () => {
     const result = await run({

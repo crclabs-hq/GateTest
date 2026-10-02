@@ -259,6 +259,7 @@ const REDIRECT_TEMPLATE_ARG_RE = /\b(?:res|ctx|c)\.redirect\s*\(\s*`/;
 const REDIRECT_VERIFY_GUARD_RE =
   /\bif\s*\(\s*!\s*(?:await\s+)?(?:[\w$]+\s*\.\s*)*(?:verif|validat|check|assert|isValid|isSafe|isAllowed|isTrusted)[\w$]*\s*\(([^)]*)\)/i;
 const GUARD_EXIT_RE = /\b(?:return|throw)\b/;
+const MEMBERSHIP_GUARD_RE = /\bif\s*\(\s*!\s*(?:await\s+)?[\w$.]+(?:\([^)]*\))?\.(?:includes|has)\s*\(\s*([\w$]+)\s*\)\s*\)/;
 // Where the backward walk for the guard stops: the enclosing route
 // registration or function head. `.catch(() => {` / `.then(` are not
 // handler heads and do not stop it (tracking.ts has a fire-and-forget
@@ -340,6 +341,10 @@ class CrossFileTaintModule extends BaseModule {
         const triggerVar = Array.from(data.localTaintedVars).find(
           (v) => this._lineReferencesVar(hit.rawLine, v),
         );
+        // An allowlist membership check that leaves the handler first:
+        // `if (!branches.includes(branchName)) return …` (gluecron-src
+        // web.tsx, 2026-10-02) — the value can only be one the server listed.
+        if (triggerVar && this._membershipGuarded(data.lines, hit.line - 1, triggerVar)) continue;
 
         // Parameterised-ORM safe-harbour: downgrade sql-query sinks in
         // files that import drizzle / prisma / kysely / etc. These ORMs
@@ -972,6 +977,22 @@ class CrossFileTaintModule extends BaseModule {
       // line itself or on one of the next two lines (the usual
       // `if (!ok) {\n  return res.status(400)…` layout).
       const body = [line, masked[j + 1] || '', masked[j + 2] || ''].join('\n');
+      if (GUARD_EXIT_RE.test(body)) return true;
+    }
+    return false;
+  }
+
+  // `if (!list.includes(v))` / `if (!set.has(v))` above the sink, inside the
+  // same handler, whose body returns or throws. Same walk and exit rule as
+  // _redirectTargetVerified; the guard must name the exact variable.
+  _membershipGuarded(lines, lineIdx, varName) {
+    const floor = Math.max(0, lineIdx - GUARD_WALK_LIMIT);
+    for (let j = lineIdx - 1; j >= floor; j -= 1) {
+      const line = this._stripComments(lines[j] || '');
+      if (HANDLER_HEAD_RE.test(line)) return false;
+      const g = MEMBERSHIP_GUARD_RE.exec(line);
+      if (!g || g[1] !== varName) continue;
+      const body = [line, lines[j + 1] || '', lines[j + 2] || ''].join('\n');
       if (GUARD_EXIT_RE.test(body)) return true;
     }
     return false;

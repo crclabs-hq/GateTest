@@ -218,10 +218,46 @@ function upstreamErrorLeak(relPath, lines) {
   return out;
 }
 
+// A plan / tier / entitlement resolver whose FALL-THROUGH answer is a paid
+// tier: anyone the resolver does not recognise gets the paid entitlements.
+// Tallrig shipped it (TALLRIG-2026-014): resolveDbPlanTier ended
+// `return "pro"`, so a free-plan stranger got five databases.
+const TIER_FN_RE = /\b(?:function\s+|(?:const|let)\s+)(\w*(?:Plan|Tier|Entitlement|Subscription)\w*)\s*(?:\(|=\s*(?:async\s*)?\()/;
+const PAID_RETURN_RE = /^\s*return\s+['"`](pro|premium|enterprise|business|paid|team|plus)['"`]\s*;?\s*$/i;
+
+function insecureDefaultTier(relPath, lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const head = TIER_FN_RE.exec(lines[i]);
+    if (!head || isComment(lines[i])) continue;
+    // Walk the function body; the LAST top-level return before the closing
+    // brace is the fall-through answer.
+    let depth = 0; let opened = false; let lastReturn = -1;
+    for (let j = i; j < Math.min(lines.length, i + 60); j++) {
+      for (const ch of lines[j]) { if (ch === '{') { depth++; opened = true; } else if (ch === '}') depth--; }
+      if (opened && depth === 1 && /^\s*return\b/.test(lines[j])) lastReturn = j;
+      if (opened && depth === 0) {
+        const m = lastReturn >= 0 && PAID_RETURN_RE.exec(lines[lastReturn]);
+        if (m) {
+          out.push({
+            rule: 'insecure-default-tier',
+            line: lastReturn + 1,
+            severity: 'warning',
+            message: `${relPath}:${lastReturn + 1} ${head[1]}() falls through to the paid tier "${m[1]}" — anyone it does not recognise gets paid entitlements`,
+            suggestion: 'Fall through to the free / least-privileged tier, and resolve paid tiers from the billing record (an active subscription), never from a default or an env override.',
+          });
+        }
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 /** All disclosure rules for one file. */
 function scanDisclosure(relPath, content) {
   const lines = String(content).split(/\r?\n/);
-  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines), ...upstreamErrorLeak(relPath, lines)];
+  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines), ...upstreamErrorLeak(relPath, lines), ...insecureDefaultTier(relPath, lines)];
 }
 
-module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak };
+module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak, insecureDefaultTier };

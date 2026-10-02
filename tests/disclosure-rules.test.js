@@ -233,3 +233,44 @@ describe('cross-test harness (scripts/cross-test-score.js)', () => {
     assert.equal(s.catchRate, 0.5);
   });
 });
+
+describe('insecure-default-tier', () => {
+  const { insecureDefaultTier } = require('../src/core/disclosure-rules');
+  it('fires: a plan resolver that falls through to "pro"', () => {
+    const src = ['function resolvePlanTier(env = process.env) {', '  const o = env.PLAN_OVERRIDE;', '  if (o === "free" || o === "pro") {', '    return o;', '  }', '  return "pro";', '}'];
+    assert.equal(insecureDefaultTier('a.ts', src).length, 1);
+  });
+  it('control: a paid tier only behind a real check, free as the fall-through, stays quiet', () => {
+    const src = ['function resolvePlanTier(sub) {', '  if (sub && sub.status === "active") {', '    return "pro";', '  }', '  return "free";', '}'];
+    assert.equal(insecureDefaultTier('a.ts', src).length, 0);
+  });
+  it('control: an unrelated function returning "pro" stays quiet', () => {
+    assert.equal(insecureDefaultTier('a.ts', ['function label(x) {', '  return "pro";', '}']).length, 0);
+  });
+});
+
+describe('project-config rules', () => {
+  const { peerMetaDrift, cspEvalConflict } = require('../src/core/project-config-rules');
+  it('peer-meta-drift fires when peerDependenciesMeta names a package peerDependencies lacks', () => {
+    const pkg = JSON.stringify({ name: 'x', peerDependenciesMeta: { 'node-llama-cpp': { optional: true } } }, null, 2);
+    assert.equal(peerMetaDrift('package.json', pkg).length, 1);
+  });
+  it('control: the fixed manifest (listed in both) stays quiet', () => {
+    const pkg = JSON.stringify({ name: 'x', peerDependencies: { 'node-llama-cpp': '*' }, peerDependenciesMeta: { 'node-llama-cpp': { optional: true } } }, null, 2);
+    assert.equal(peerMetaDrift('package.json', pkg).length, 0);
+  });
+  const csp = { relPath: 'src/lib/csp.ts', content: 'const SCRIPT_SRC = "script-src \'self\' \'nonce-X\' \'wasm-unsafe-eval\'";' };
+  it('csp-eval-conflict fires: strict CSP + a SolidStart app.config without serialization', () => {
+    const cfg = { relPath: 'apps/web/app.config.ts', content: 'import { defineConfig } from "@solidjs/start/config";\nexport default defineConfig({\n  server: { preset: "bun" },\n});' };
+    const out = cspEvalConflict([csp, cfg]);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].severity, 'error');
+  });
+  it('control: the fixed config (serialization: json) and a CSP that allows eval both stay quiet', () => {
+    const fixed = { relPath: 'apps/web/app.config.ts', content: 'export default defineConfig({\n  serialization: { mode: "json" },\n  server: {},\n});' };
+    assert.equal(cspEvalConflict([csp, fixed]).length, 0);
+    const lax = { relPath: 'src/lib/csp.ts', content: '"script-src \'self\' \'unsafe-eval\'"' };
+    const cfg = { relPath: 'apps/web/app.config.ts', content: 'export default defineConfig({\n  server: {},\n});' };
+    assert.equal(cspEvalConflict([lax, cfg]).length, 0);
+  });
+});
