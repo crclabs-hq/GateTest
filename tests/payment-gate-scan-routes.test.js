@@ -98,11 +98,17 @@ describe('scan/fix payment gate', () => {
   });
 
   test('non-admin requests are gated through verifyFixPayment before any other work', () => {
+    // 2026-10-02: an active hosted-MCP subscription key is the one other way
+    // to pay (mcp-fix-entitlement.js). Every other non-admin request still
+    // goes through verifyFixPayment, and an inactive/unverifiable key returns.
     assert.match(
       scanFixSrc,
-      /const isAdmin = isAdminRequest\(req\);\s*\n\s*if\s*\(!isAdmin\)\s*\{\s*\n\s*const paymentCheck = await verifyFixPayment\(input\.sessionId\);/,
-      'scan/fix must call verifyFixPayment(input.sessionId) for non-admin requests'
+      /const isAdmin = isAdminRequest\(req\);[\s\S]{0,1600}if \(mcpEntitlement\.state === "active"\) \{[\s\S]{0,300}\} else if \(!isAdmin\) \{\s*\n\s*const paymentCheck = await verifyFixPayment\(input\.sessionId\);/,
+      'scan/fix must call verifyFixPayment(input.sessionId) for non-admin requests without an active MCP subscription'
     );
+    const gate = scanFixSrc.slice(scanFixSrc.indexOf('const isAdmin = isAdminRequest(req);'), scanFixSrc.indexOf('await verifyFixPayment(input.sessionId)'));
+    assert.match(gate, /state === "inactive"\) \{\s*return NextResponse\.json/);
+    assert.match(gate, /state === "not_checked"\) \{\s*return NextResponse\.json/);
   });
 
   test('a failed payment check returns the rejection response instead of continuing', () => {
