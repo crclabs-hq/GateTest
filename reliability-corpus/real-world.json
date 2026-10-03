@@ -130,7 +130,7 @@
       "url": "https://github.com/nestjs/nest.git",
       "sha": "39fbddae51281ca56bf2fed9123d98e61509066c",
       "why": "TypeScript monorepo (npm workspaces) with an integration/ e2e tree and sample apps — first contact 39 blocking: a logger class told it uses console, tsconfig flags as build verdicts, mongodb://localhost fixtures as secrets, `.catch(() => {})` on a stored promise the caller awaits; what remains is six `reduce(async …)` in the e2e app, two npm-audit advisories and one committed PKCS#8 key",
-      "maxBlocking": 9
+      "maxBlocking": 7
     },
     {
       "name": "trpc",
