@@ -1,0 +1,11 @@
+# One-shot recovery request for the production box (read by deploy-on-box.sh
+# from origin/main on every pull-deploy tick). It applies only while the box
+# checkout's HEAD is exactly the commit below; anywhere else it is ignored.
+# Recovery never deletes: tracked edits go to /var/tmp/deploy-recover-*.patch
+# and everything goes into a named git stash before the checkout moves to main.
+#
+# 2026-10-03 — authorised by Craig ("fix the production deploy"). The box has
+# refused 467 consecutive ticks since 2026-10-02T04:38Z with exit 11 (tracked
+# files changed on the box that the deploy did not change), stuck on 70b42184.
+# Remove this file once /api/platform-status shows the box on current main.
+from=70b4218426e8

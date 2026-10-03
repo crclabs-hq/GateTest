@@ -120,3 +120,46 @@ test('a hand edit on main refuses with its own exit code (11), changes nothing',
     assert.equal(fs.readFileSync(path.join(box, 'app.txt'), 'utf8'), 'v1 + edit on main\n');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+// A recovery request committed to main (scripts/deploy/RECOVER_REQUEST,
+// `from=<sha>`) is the pull timer's only deliberate channel to the box — it
+// applies only while the box HEAD is exactly that commit (2026-10-03:
+// production refused 467 ticks with exit 11, SSH closed by design).
+function requestOnMain(tmp, body) {
+  const up = path.join(tmp, 'up');
+  fs.mkdirSync(path.join(up, 'scripts', 'deploy'), { recursive: true });
+  fs.writeFileSync(path.join(up, 'scripts', 'deploy', 'RECOVER_REQUEST'), body);
+  git(up, 'add', '-A'); git(up, 'commit', '-q', '-m', 'recover request'); git(up, 'push', '-q', 'origin', 'main');
+  return git(up, 'rev-parse', 'HEAD');
+}
+
+test('a RECOVER_REQUEST on main naming this box HEAD recovers a hand-edited main, keeping the edit', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const { tmp, box } = makeBox();
+  try {
+    git(box, 'checkout', '-q', '-f', 'main');
+    const boxHead = git(box, 'rev-parse', 'HEAD');
+    fs.writeFileSync(path.join(box, 'app.txt'), 'v1 + edit on main\n');
+    const newHead = requestOnMain(tmp, `from=${boxHead.slice(0, 12)}\n`);
+    git(box, 'fetch', '-q', 'origin', 'main'); // pull-deploy.sh fetches before it runs the script
+    const r = runSyncPhase(box, {});
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /RECOVER: requested by scripts\/deploy\/RECOVER_REQUEST/);
+    assert.equal(git(box, 'rev-parse', 'HEAD'), newHead);
+    assert.match(git(box, 'stash', 'list'), /deploy-recover-/);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('a RECOVER_REQUEST naming any other commit is ignored — the dirty box still refuses (11)', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const { tmp, box } = makeBox();
+  try {
+    git(box, 'checkout', '-q', '-f', 'main');
+    fs.writeFileSync(path.join(box, 'app.txt'), 'v1 + edit on main\n');
+    requestOnMain(tmp, 'from=0123456789ab\n');
+    git(box, 'fetch', '-q', 'origin', 'main');
+    const r = runSyncPhase(box, {});
+    assert.equal(r.status, 11, r.stderr);
+    assert.match(r.stdout, /not this box's HEAD — ignored/);
+    assert.equal(fs.readFileSync(path.join(box, 'app.txt'), 'utf8'), 'v1 + edit on main\n');
+    assert.equal(git(box, 'stash', 'list'), '');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
