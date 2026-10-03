@@ -311,6 +311,9 @@ function extractImages(html, baseUrl, pageUrl) {
   const navigableHtml = stripNonNavigableRegions(html);
 
   while ((match = srcRegex.exec(navigableHtml)) !== null) {
+    // An inline data:/blob: image is part of the page; there is nothing to
+    // fetch, so it cannot be broken or time out (gatetest.io badge, 2026-10-03).
+    if (/^\s*(?:data|blob):/i.test(match[1])) continue;
     try {
       const resolved = new URL(match[1].trim(), pageUrl).href;
       images.push(resolved);
@@ -339,6 +342,62 @@ function getSuggestion(errorType) {
     'redirect-error-page': 'A redirect answered with a rendered error page — the route throws before it redirects; make it a next.config redirect or fix the exception',
   };
   return suggestions[errorType] || 'Investigate and fix the issue';
+}
+
+// ── Error-page content: one definition for both crawl engines ───────────
+// A page is an error page when it states an error where a visitor sees it:
+// its <title> or a top heading, or anywhere on a page with little else on
+// it. A full page whose copy MENTIONS "something went wrong" or "page not
+// found" (product copy, docs), and a framework's serialized not-found
+// component inside a <script>, are not error pages (gatetest.io
+// 2026-10-03: 52 healthy pages flagged as 404-content).
+const ERROR_PATTERNS = [
+  { regex: /application error/i, type: 'app-error' },
+  { regex: /internal server error/i, type: 'server-error' },
+  { regex: /page not found|page could not be found/i, type: '404-content' },
+  { regex: /something went wrong/i, type: 'generic-error' },
+  { regex: /uncaught (type)?error/i, type: 'js-error-in-html' },
+  { regex: /cannot read propert/i, type: 'js-runtime-error' },
+  { regex: /module not found/i, type: 'module-error' },
+  { regex: /hydration failed/i, type: 'hydration-error' },
+  { regex: /unhandled runtime error/i, type: 'runtime-error' },
+];
+const ERROR_PAGE_MAX_TEXT = 600;
+
+/** Error-pattern types a page shows, judged by where they appear. */
+function errorContentTypes({ title = '', headings = [], visibleText = '' }) {
+  const prominent = [title || '', ...(headings || [])].join('\n');
+  const shortPage = String(visibleText || '').trim().length < ERROR_PAGE_MAX_TEXT;
+  return ERROR_PATTERNS
+    .filter(({ regex }) => regex.test(prominent) || (shortPage && regex.test(visibleText || '')))
+    .map(({ type }) => type);
+}
+
+// ── One check, and one finding, per external URL ─────────────────────────
+// A footer link appears on every page. Checking it per page re-requested the
+// same URL ~105 times on gatetest.io and reported it 105 times (2026-10-03).
+// The result is cached for the crawl, and a broken URL is ONE entry that
+// lists the pages linking to it.
+function createExternalLinkChecker(timeout, check = checkUrl) {
+  const cache = new Map(); // href -> Promise<{status, rateLimited?} | {error}>
+  return function checkExternal(href) {
+    if (!cache.has(href)) {
+      cache.set(href, check(href, timeout).then((r) => r, (err) => ({ error: err && err.message ? err.message : 'error' })));
+    }
+    return cache.get(href);
+  };
+}
+
+/** Add a broken link, merging repeats of the same URL into one entry with a `pages` list. */
+function recordBrokenLink(brokenLinks, entry) {
+  const existing = brokenLinks.find((b) => b.link === entry.link && b.type === entry.type);
+  if (existing) {
+    existing.pages = existing.pages || [existing.page];
+    if (!existing.pages.includes(entry.page)) existing.pages.push(entry.page);
+    existing.occurrences = existing.pages.length;
+    return;
+  }
+  brokenLinks.push({ ...entry, pages: [entry.page], occurrences: 1 });
 }
 
 // ── Rate limiting is the site's answer to OUR request rate ───────────────
@@ -403,4 +462,6 @@ module.exports = {
   extractTitle, extractDeclaredIconHref,
   normaliseCrawlUrl, extractCanonicalHref, aliasTarget,
   isRateLimited, retryAfterMs, _hostDelayMs: hostDelayMs,
+  errorContentTypes, ERROR_PATTERNS,
+  createExternalLinkChecker, recordBrokenLink,
 };

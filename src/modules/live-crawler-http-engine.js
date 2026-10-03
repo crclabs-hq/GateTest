@@ -3,21 +3,13 @@
 const { URL } = require('url');
 const {
   fetchPage, checkUrl, extractLinks, extractImages, extractTitle,
-  normaliseCrawlUrl, extractCanonicalHref, aliasTarget,
+  normaliseCrawlUrl, extractCanonicalHref, aliasTarget, errorContentTypes,
+  createExternalLinkChecker, recordBrokenLink,
 } = require('./live-crawler-http-helpers');
 const { authHeadersFor } = require('./live-crawler-auth');
+const { extractVisibleText, extractTopHeadings } = require('../core/html-extract');
 
-const ERROR_PATTERNS = [
-  { regex: /application error/i, type: 'app-error' },
-  { regex: /internal server error/i, type: 'server-error' },
-  { regex: /page not found/i, type: '404-content' },
-  { regex: /something went wrong/i, type: 'generic-error' },
-  { regex: /uncaught (type)?error/i, type: 'js-error-in-html' },
-  { regex: /cannot read propert/i, type: 'js-runtime-error' },
-  { regex: /module not found/i, type: 'module-error' },
-  { regex: /hydration failed/i, type: 'hydration-error' },
-  { regex: /unhandled runtime error/i, type: 'runtime-error' },
-];
+
 
 async function crawlWithHttp(ctx) {
   const {
@@ -37,6 +29,7 @@ async function crawlWithHttp(ctx) {
   } = ctx;
 
   let budgetExhausted = false;
+  const checkExternalLink = createExternalLinkChecker(timeout);
 
   while (queue.length > 0 && visited.size < maxPages) {
     // Crawl-wide wall-clock budget (#640): stop taking new pages once there
@@ -154,16 +147,22 @@ async function crawlWithHttp(ctx) {
       let anchorMatch;
       while ((anchorMatch = anchorRegex.exec(body)) !== null) {
         const targetId = anchorMatch[1];
+        // HTML: a fragment of "top" (any case) scrolls to the top of the
+        // document when no element has that id — it is never broken.
+        if (/^top$/i.test(targetId)) continue;
         if (!idsOnPage.has(targetId)) {
           anchorMissingId.push({ page: url, anchor: `#${targetId}`,
             message: `<a href="#${targetId}"> targets a non-existent id` });
         }
       }
 
-      for (const { regex, type } of ERROR_PATTERNS) {
-        if (regex.test(body)) {
-          errors.push({ url, type, message: `Error pattern detected on page: "${type}"` });
-        }
+      // Judged where a visitor sees it (errorContentTypes, the one rule).
+      for (const type of errorContentTypes({
+        title: extractTitle(body) || '',
+        headings: extractTopHeadings(body),
+        visibleText: extractVisibleText(body),
+      })) {
+        errors.push({ url, type, message: `Error pattern detected on page: "${type}"` });
       }
 
       const links = extractLinks(body, baseUrl, url);
@@ -190,15 +189,13 @@ async function crawlWithHttp(ctx) {
 
       if (checkExternal) {
         for (const link of links.external.slice(0, 20)) {
-          try {
-            const linkResult = await checkUrl(link.href, timeout);
-            if (linkResult.rateLimited) {
-            rateLimited.push({ url: linkResult.url, status: linkResult.status, kind: 'external-link' });
+          const linkResult = await checkExternalLink(link.href);
+          if (linkResult.error) {
+            recordBrokenLink(brokenLinks, { page: url, link: link.href, status: 'timeout/error', type: 'external' });
+          } else if (linkResult.rateLimited) {
+            if (!rateLimited.some((r) => r.url === link.href)) rateLimited.push({ url: link.href, status: linkResult.status, kind: 'external-link' });
           } else if (linkResult.status >= 400) {
-              brokenLinks.push({ page: url, link: link.href, status: linkResult.status, type: 'external' });
-            }
-          } catch {
-            brokenLinks.push({ page: url, link: link.href, status: 'timeout/error', type: 'external' });
+            recordBrokenLink(brokenLinks, { page: url, link: link.href, status: linkResult.status, type: 'external' });
           }
         }
       }
