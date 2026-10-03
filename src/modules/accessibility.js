@@ -587,7 +587,9 @@ class AccessibilityModule extends BaseModule {
     // called more than once (suggesting an animation loop) or when the file
     // also calls .animate().
     const rafCount = (content.match(/requestAnimationFrame/g) || []).length;
-    const hasAnimate = content.includes('.animate(') || content.includes('gsap.') || content.includes('tween.');
+    // Tokens, not substrings: `commitsBetween.length` contains "tween."
+    // (Gluecron src/routes/compare.tsx, 2026-10-03).
+    const hasAnimate = /\.animate\s*\(|(?<![\w$])(?:gsap|tween|TWEEN)\s*\./.test(content);
     if ((rafCount > 1 || hasAnimate) && !content.includes('prefers-reduced-motion')) {
       result.addCheck(`a11y:reduced-motion-js:${relPath}`, false, {
         file: relPath,
