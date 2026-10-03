@@ -50,6 +50,30 @@ const TOLERANT_EXIT = new Set([
 ]);
 
 /**
+ * Teardown of something that may already be gone, and read-only diagnostics
+ * printed for a human. `|| true` on these is a warning, not a blocked build:
+ * `systemctl stop caddy || true` before installing the replacement, `userdel
+ * old-user || true` in an uninstaller, `journalctl -u svc -n 30 || true` in a
+ * failure report. A failure leaves nothing the script goes on to rely on.
+ * (Tallrig 2026-10-03: 103 teardown + 24 diagnostic lines of 229.)
+ * Every entry exits non-zero when its target is already gone, so it needs
+ * the tolerance. `rm` is NOT here: `rm -f` tolerates absence by itself, so
+ * `|| true` on it hides only real failures (tests/infra-oracles.test.js).
+ * NOT here, and blocking: anything that brings state INTO being —
+ * `systemctl start|restart|enable|reload`, `rsync`, `cp`, `tar`,
+ * `git reset`, `bun install` (Tallrig deploy.sh rollback hid all four).
+ */
+const TEARDOWN_OR_READONLY = new Set([
+  'systemctl stop', 'systemctl disable', 'systemctl mask', 'systemctl unmask',
+  'systemctl reset-failed', 'systemctl kill', 'systemctl show', 'systemctl status',
+  'systemctl is-active', 'systemctl is-enabled', 'systemctl is-failed',
+  'ufw delete', 'docker rm', 'docker stop', 'docker kill', 'docker rmi',
+  'git remote rm', 'git remote remove', 'nft list', 'wg show', 'ip link',
+  'userdel', 'groupdel', 'pkill', 'killall', 'fuser',
+  'journalctl', 'dmesg', 'dig', 'ss', 'ls', 'df', 'free', 'uptime',
+]);
+
+/**
  * A YAML step whose `name:`/`id:` says it is CI plumbing, never the
  * product's own test/build/gate — AlecRae.com's standalone-deploy.yml
  * (issue #771, GT-13) posts its gate result to a flywheel endpoint under a
@@ -117,6 +141,8 @@ const FUNCTION_DEF_RE = /^\s*(?:function\s+([A-Za-z_][\w-]*)\s*(?:\(\s*\))?|([A-
 /** A body line that puts the outcome in front of the reader. */
 const REPORTS_OUTCOME_RE = /\b(?:echo|printf|logger)\b|\blog(?:_\w+)?\b|\b\w+_(?:fail|failed|warn|error|pass|ok)\b|>&2/;
 
+const DEVNULL_SWALLOW_RE = /2>\/dev\/null\s*\|\|\s*true\b/;
+
 const RULES = [
   {
     code: 'pipe-true',
@@ -127,7 +153,7 @@ const RULES = [
   },
   {
     code: 'devnull-swallow',
-    pattern: /2>\/dev\/null\s*\|\|\s*true\b/,
+    pattern: DEVNULL_SWALLOW_RE,
     severity: 'error',
     swallowGuard: true,
     message: (line) => `"2>/dev/null || true" hides stderr AND swallows exit code — undetectable failure: ${line.trim()}`,
@@ -181,6 +207,9 @@ function guardedCommandHead(masked) {
   if (!words.length) return null;
   const two = `${words[0]} ${words[1] || ''}`.trim();
   if (TOLERANT_EXIT.has(two)) return two;
+  const three = `${two} ${words[2] || ''}`.trim();
+  if (TEARDOWN_OR_READONLY.has(three)) return three;
+  if (TEARDOWN_OR_READONLY.has(two)) return two;
   return words[0];
 }
 
@@ -271,6 +300,9 @@ class BashSafetyModule extends BaseModule {
       for (const rule of RULES) {
         if (!rule.pattern.test(codeLine)) continue;
         if (rule.swallowGuard && isTolerantSwallow(rawLine)) continue;
+        // `2>/dev/null || true` is reported once, as devnull-swallow — the
+        // same line under pipe-true too doubled every such finding.
+        if (rule.code === 'pipe-true' && DEVNULL_SWALLOW_RE.test(codeLine)) continue;
         if (rule.code === 'set-e-disabled' && this._errexitHandled(lines, idx, mode)) continue;
 
         // `message` + rel path + line are what the finding registry, the
@@ -294,10 +326,15 @@ class BashSafetyModule extends BaseModule {
         const guardedHead = rule.swallowGuard && !inspected && !tested && !bestEffort
           ? guardedCommandHead(codeLine) : null;
         const metadataOnly = guardedHead !== null && METADATA_ONLY_CMDS.has(guardedHead);
-        const notifyOnly = rule.swallowGuard && !inspected && !tested && !bestEffort && !metadataOnly
+        // Head read from the whole `\`-continued command, so a `|| true` on
+        // a continuation line is judged by the command it belongs to.
+        const contHead = rule.swallowGuard && !inspected && !tested && !bestEffort && !metadataOnly
+          ? guardedCommandHead(this._continuedCommand(lines, idx)) : null;
+        const teardown = contHead !== null && TEARDOWN_OR_READONLY.has(contHead);
+        const notifyOnly = rule.swallowGuard && !inspected && !tested && !bestEffort && !metadataOnly && !teardown
           && discardedHttpCall(this._continuedCommand(lines, idx));
-        const selfReporting = guardedHead !== null && !metadataOnly && !notifyOnly && this._selfReportingFunction(lines, guardedHead);
-        const downgraded = inspected || tested || bestEffort || metadataOnly || notifyOnly || selfReporting;
+        const selfReporting = guardedHead !== null && !metadataOnly && !teardown && !notifyOnly && this._selfReportingFunction(lines, guardedHead);
+        const downgraded = inspected || tested || bestEffort || metadataOnly || teardown || notifyOnly || selfReporting;
         result.addCheck(`bash-safety:${rule.code}:${rel}:${lineNum}`, false, {
           severity: downgraded ? 'warning' : rule.severity,
           file: rel,
@@ -307,6 +344,7 @@ class BashSafetyModule extends BaseModule {
             + (tested ? ' — the outcome is tested on the next line; make sure that test covers the failure, not only the happy path' : '')
             + (bestEffort ? ' — step name/id marks this as best-effort CI plumbing (upload/artifact/cache/coverage/notify/report/...); it does not gate the build' : '')
             + (metadataOnly ? ` — ${guardedHead} only changes file metadata; a failure leaves the script's data and control flow unchanged, so this is best-effort, not a swallowed error` : '')
+            + (teardown ? ` — ${contHead} removes or only reads something; a failure leaves nothing the script goes on to rely on` : '')
             + (notifyOnly ? ' — an HTTP call whose response is discarded (a ping or event post); the script reads nothing from it, so a failure changes nothing that follows' : '')
             + (selfReporting ? ` — ${guardedHead} is defined in this file and prints its own verdict before returning non-zero; the "|| true" keeps set -e from aborting the remaining checks` : ''),
           fix: `${rel}:${lineNum} — ${rule.message(rawLine)}\nFix: handle the error explicitly or add "# gatetest:swallow-ok reason=\\"<reason>\\"" if intentional.`,

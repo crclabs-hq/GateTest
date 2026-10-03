@@ -39,7 +39,9 @@ async function scan(files) {
   }
 }
 const names = (f) => f.map((c) => c.name).join(', ');
-const pipeTrue = (f) => f.find((c) => c.name.startsWith('bash-safety:pipe-true:'));
+// The swallow finding on a line: pipe-true, or devnull-swallow when the line
+// is `2>/dev/null || true` (reported once since 2026-10-03, not under both).
+const pipeTrue = (f) => f.find((c) => /^bash-safety:(?:pipe-true|devnull-swallow):/.test(c.name));
 
 describe('bash-safety — package.json: a coverage script declared non-fatal by its name', () => {
   const NEST = {
@@ -168,10 +170,10 @@ describe('bash-safety — `cmd || true` whose OUTCOME is tested on the next line
     '    exit 0', '  fi', '  exit 0', 'fi', '',
   ].join('\n');
 
-  it('NEGATIVE: the pre-push clone is a warning on both rules, with the reason', async () => {
+  it('NEGATIVE: the pre-push clone is one warning, with the reason', async () => {
     const f = await scan({ '.githooks/pre-push': PRE_PUSH });
     const hits = f.filter((c) => /^bash-safety:(pipe-true|devnull-swallow):/.test(c.name));
-    assert.equal(hits.length, 2, names(f));
+    assert.equal(hits.length, 1, names(f));
     for (const h of hits) {
       assert.equal(h.severity, 'warning', h.name);
       assert.match(h.message, /outcome is tested on the next line/);
@@ -313,20 +315,19 @@ describe('bash-safety — GT-13 (#771): the two shell shapes from AlecRae\'s own
   // "$MIG"/*.sql "$PROBE/" 2>/dev/null || true` in check-schema-drift.sh.
   const devnull = (f) => f.find((c) => c.name.startsWith('bash-safety:devnull-swallow:'));
 
-  it('NEGATIVE: `chmod 644 "$STATUS_FILE" 2>/dev/null || true` is a warning on both rules, with the reason', async () => {
+  it('NEGATIVE: `chmod 644 "$STATUS_FILE" 2>/dev/null || true` is one warning, with the reason', async () => {
     const f = await scan({ 'scripts/check-deploy-drift.sh': 'set -e\nmv "$tmp" "$STATUS_FILE"\nchmod 644 "$STATUS_FILE" 2>/dev/null || true\n' });
-    const p = pipeTrue(f); const d = devnull(f);
-    assert.ok(p && d, names(f));
-    assert.equal(p.severity, 'warning');
+    const d = devnull(f);
+    assert.ok(d, names(f));
+    assert.ok(!f.some((c) => c.name.startsWith('bash-safety:pipe-true:')), names(f));
     assert.equal(d.severity, 'warning');
-    assert.match(p.message, /chmod only changes file metadata/);
+    assert.match(d.message, /chmod only changes file metadata/);
   });
 
   it('POSITIVE: `exec 9>"$LOCK_FILE" 2>/dev/null || true` (lock never taken, deploy silently skipped) stays an error', async () => {
     const f = await scan({ 'scripts/auto-deploy.sh': 'set -e\nexec 9>"$LOCK_FILE" 2>/dev/null || true\nif ! flock -n 9; then exit 0; fi\n' });
-    const p = pipeTrue(f); const d = devnull(f);
-    assert.ok(p && d, names(f));
-    assert.equal(p.severity, 'error');
+    const d = devnull(f);
+    assert.ok(d, names(f));
     assert.equal(d.severity, 'error');
   });
 
