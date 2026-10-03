@@ -58,6 +58,27 @@ echo "[deploy] $(date -u +%FT%TZ) — deploying $(git rev-parse --abbrev-ref HEA
 # anything: tracked edits are copied to a patch file, everything (untracked
 # included) goes into a named stash, the old branch is left where it was, and
 # only then does the checkout move to main. The guards below still run after it.
+# A recovery request committed to main. The pull timer has no way to pass
+# DEPLOY_RECOVER (SSH is closed by design since 2026-09-16), so the one
+# deliberate, reviewed channel to the box is main itself:
+# scripts/deploy/RECOVER_REQUEST holding `from=<sha>`, the box commit a human
+# authorises recovering FROM. It applies only while this checkout's HEAD is
+# exactly that commit, so it is inert everywhere else and goes inert as soon
+# as the box moves. Recovery below never deletes anything.
+RECOVER_REQUEST_FILE="scripts/deploy/RECOVER_REQUEST"
+if [ "${DEPLOY_RECOVER:-0}" != "1" ] && REQ="$(git show "origin/main:$RECOVER_REQUEST_FILE" 2>/dev/null)"; then
+  REQ_FROM="$(printf '%s\n' "$REQ" | sed -n 's/^from=\([0-9a-f]\{7,40\}\)[[:space:]]*$/\1/p' | head -n1)"
+  REQ_SHA=""
+  if [ -n "$REQ_FROM" ]; then
+    if ! REQ_SHA="$(git rev-parse --verify -q "${REQ_FROM}^{commit}")"; then REQ_SHA=""; fi
+  fi
+  if [ -n "$REQ_SHA" ] && [ "$REQ_SHA" = "$(git rev-parse HEAD)" ]; then
+    echo "[deploy] RECOVER: requested by $RECOVER_REQUEST_FILE on origin/main for this box's HEAD ${REQ_SHA:0:12}"
+    DEPLOY_RECOVER=1
+  else
+    echo "[deploy] $RECOVER_REQUEST_FILE on origin/main names ${REQ_FROM:-no valid from=<sha>}, not this box's HEAD — ignored"
+  fi
+fi
 if [ "${DEPLOY_RECOVER:-0}" = "1" ]; then
   R_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
   R_HEAD="$(git rev-parse --short HEAD)"

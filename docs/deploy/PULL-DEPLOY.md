@@ -329,6 +329,15 @@ systemctl list-timers gatetest-pull-deploy.timer
 
 ## How recovery differs
 
+**Without SSH — a recovery request on main.** The pull timer cannot pass
+`DEPLOY_RECOVER=1`. Commit `scripts/deploy/RECOVER_REQUEST` holding
+`from=<sha>`, where `<sha>` is the commit the box is stuck on
+(`/api/platform-status` → `lastPullDeploy.from`), through a reviewed PR.
+`deploy-on-box.sh` honours it only while the box HEAD is exactly that commit,
+so it is inert everywhere else and goes inert once the box moves. Remove the
+file in a follow-up once the box is current. The edits are kept as described
+below: the patch in `/var/tmp`, plus a named stash.
+
 `pull-deploy.sh` **never sets `DEPLOY_RECOVER`**. If the box is stuck on the
 wrong branch or has hand edits — the scenario `DEPLOY_RECOVER=1` fixes (see
 [PR #611](https://github.com/crclabs-hq/GateTest/pull/611)) — the pull timer's
