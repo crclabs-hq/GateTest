@@ -82,7 +82,39 @@ function extractMetaDescription(html) {
   return raw === undefined ? null : raw.trim();
 }
 
+// What a visitor can READ on the page: script/style/template/noscript bodies,
+// comments and inline SVG removed, tags dropped, whitespace collapsed. A
+// framework's serialized payload (Next.js embeds its not-found component's
+// "This page could not be found" in a <script> on every page) is not text
+// anyone sees, and judging it as page content reported 52 healthy pages on
+// gatetest.io as 404s (2026-10-03).
+const INVISIBLE_REGION_RE = /<!--[\s\S]*?-->|<(script|style|template|noscript)\b[^>]*>[\s\S]*?<\/\1>/gi;
+
+function extractVisibleText(html) {
+  return stripSvgRegions(String(html || '').replace(INVISIBLE_REGION_RE, ' '))
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** The visible text of the page's <h1> and <h2> headings, in order. */
+function extractTopHeadings(html) {
+  const out = [];
+  const re = /<h([12])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  const body = String(html || '').replace(INVISIBLE_REGION_RE, ' ');
+  let m;
+  while ((m = re.exec(body)) !== null) {
+    const text = extractVisibleText(m[2]);
+    if (text) out.push(text);
+  }
+  return out;
+}
+
 module.exports = {
+  extractVisibleText,
+  extractTopHeadings,
   extractTitle,
   extractMetaDescription,
   matchTitleTag,
