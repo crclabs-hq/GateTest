@@ -53,10 +53,14 @@ describe('PerformanceModule — event-cleanup counts only listeners that can out
   });
 
   it('POSITIVE: listeners on long-lived globals (window/document) still count', () => {
+    // Inside a function: registered on every call. (Top level runs once per
+    // load and is exempt — tests/performance-masked-cleanup.test.js.)
     const src = [
-      'window.addEventListener("resize", onResize);',
-      'document.addEventListener("keydown", onKey);',
-      'window.addEventListener("scroll", onScroll);',
+      'function mount() {',
+      '  window.addEventListener("resize", onResize);',
+      '  document.addEventListener("keydown", onKey);',
+      '  window.addEventListener("scroll", onScroll);',
+      '}',
     ].join('\n');
     assert.strictEqual(mod()._leakyListenerCount(src), 3);
   });
@@ -74,10 +78,12 @@ describe('PerformanceModule — event-cleanup counts only listeners that can out
 
   it('a { signal } on ONE call does not exempt the others (args are read to the matching paren)', () => {
     const src = [
-      'window.addEventListener("resize", onResize, { signal: c.signal });',
-      'window.addEventListener("keydown", onKey);',
-      'window.addEventListener("scroll", onScroll);',
-      'document.addEventListener("click", onClick);',
+      'function mount(c) {',
+      '  window.addEventListener("resize", onResize, { signal: c.signal });',
+      '  window.addEventListener("keydown", onKey);',
+      '  window.addEventListener("scroll", onScroll);',
+      '  document.addEventListener("click", onClick);',
+      '}',
     ].join('\n');
     assert.strictEqual(mod()._leakyListenerCount(src), 3);
   });

@@ -8,6 +8,7 @@ const { JS_SOURCE_EXTS } = require('../core/source-extensions');
 const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
+const { maskSource } = require('../core/source-strip');
 const zlib = require('zlib');
 
 class PerformanceModule extends BaseModule {
@@ -202,7 +203,13 @@ class PerformanceModule extends BaseModule {
       const relPath = repoRelative(projectRoot, file);
       const normalised = relPath.replace(/\\/g, '/');
       if (SCANNER_PATH_RE.test('/' + normalised)) continue;
-      const content = fs.readFileSync(file, 'utf-8');
+      if (this._isTestPath(normalised)) continue;
+      // Judged on code only: a listener or timer inside a string is an inline
+      // `<script>` a server-rendered page ships, which lives exactly as long
+      // as the document it is in, and one inside a comment is prose
+      // (Gluecron 2026-10-03: 33 of 35 blocking findings were one or the
+      // other, plus two files under src/__tests__/).
+      const content = maskSource(fs.readFileSync(file, 'utf-8'), relPath);
 
       // Check for addEventListener without removeEventListener.
       // Only listeners that can ACTUALLY outlive their scope are counted — see
@@ -222,7 +229,7 @@ class PerformanceModule extends BaseModule {
       }
 
       // Check for setInterval without clearInterval
-      const setCount = (content.match(/setInterval\s*\(/g) || []).length;
+      const setCount = this._leakyIntervalCount(content);
       const clearCount = (content.match(/clearInterval\s*\(/g) || []).length;
 
       if (setCount > 0 && clearCount === 0) {
@@ -284,6 +291,31 @@ class PerformanceModule extends BaseModule {
       || /\bself\s*\.\s*(?:skipWaiting\s*\(|clients\s*\.\s*claim\s*\()/.test(content);
   }
 
+  /**
+   * setInterval calls that can pile up. Two shapes are a single timer for the
+   * life of the process, not a leak: a call at module top level (column 0,
+   * bare or bound — `const sweep = setInterval(…)`), and one whose handle is
+   * stored in a module-level `let`/`var` (the start-once idiom,
+   * `snapshotTimer = setInterval(…)` behind `if (started) return`).
+   */
+  _leakyIntervalCount(content) {
+    let count = 0;
+    const re = /setInterval\s*\(/g;
+    let m;
+    while ((m = re.exec(content)) !== null) {
+      const lineStart = content.lastIndexOf('\n', m.index) + 1;
+      const head = content.slice(lineStart, m.index);
+      if (/^(?:export\s+)?(?:(?:const|let|var)\s+[\w$]+(?:\s*:[^=]+)?\s*=\s*)?$/.test(head)) continue;
+      const bound = /(?:^|[^\w$.])([A-Za-z_$][\w$]*)\s*=\s*$/.exec(head);
+      if (bound) {
+        const n = bound[1].replace(/\$/g, '\\$');
+        if (new RegExp(`^(?:export\\s+)?(?:let|var)\\s+${n}\\b`, 'm').test(content)) continue;
+      }
+      count++;
+    }
+    return count;
+  }
+
   _leakyListenerCount(content) {
     const CTORS = 'EventSource|WebSocket|Worker|SharedWorker|BroadcastChannel|MessageChannel|RTCPeerConnection|AbortController|EventTarget|Audio';
     const DISPOSERS = 'close|terminate|abort|disconnect|destroy|unsubscribe';
@@ -319,6 +351,20 @@ class PerformanceModule extends BaseModule {
       // cannot exempt this one.
       if (/\bsignal\b/.test(this._callArgs(content, re.lastIndex - 1))) continue;
       if (isDisposable(m[1])) continue;
+      const lineStart = content.lastIndexOf('\n', m.index) + 1;
+      const head = content.slice(lineStart, m.index);
+      // Module top level (column 0): registered once per load, for the life
+      // of the page or process (a RUM beacon's `window.addEventListener`).
+      // Global receivers only: a top-level socket that is never closed still
+      // counts (its listeners are the symptom of the unclosed resource).
+      if (head === '' && (!m[1] || /^(?:window|document|self|globalThis)$/.test(m[1]))) continue;
+      // A TypeScript method signature (`addEventListener(type: "open",
+      // listener: () => void): void;` in an interface) declares, not calls.
+      if (!m[1] && /^\s*$/.test(head)) {
+        const args = this._callArgs(content, re.lastIndex - 1);
+        const after = content.slice(re.lastIndex + args.length + 1, re.lastIndex + args.length + 5);
+        if (/^\s*:/.test(after)) continue;
+      }
       count++;
     }
     return count;
