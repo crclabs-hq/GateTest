@@ -10,6 +10,7 @@ const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell, isImageRenderer } = require('../core/scan-scope');
 const { maskSource } = require('../core/source-strip');
 const { lineLocator } = require('../core/line-at');
+const { isApiEndpointPath } = require('../core/api-path');
 
 // Named CSS colors mapped to RGB values
 const NAMED_COLORS = {
@@ -184,6 +185,15 @@ class AccessibilityModule extends BaseModule {
       result.addCheck('a11y:live-summary', true, {
         severity: 'info',
         message: 'Fetched response does not look like an HTML page — nothing to audit',
+      });
+      return false;
+    }
+    // An API / GraphQL endpoint is served by a tool, not authored as a content
+    // page — landmark / lang checks do not apply (gluecron.com /api/graphql).
+    if (isApiEndpointPath(label)) {
+      result.addCheck('a11y:live-summary', true, {
+        severity: 'info',
+        message: `${label} is an API / GraphQL endpoint, not a content page — landmark and lang checks not applicable`,
       });
       return false;
     }
