@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-02T10:00:33.889Z",
+  "generatedAt": "2026-10-03T09:26:17.401Z",
   "source": "scripts/real-world-precision.js",
   "note": "Measured on every run against pinned commits of repositories we do not control. Ceilings only ratchet down. Do not hand-edit — run the script.",
   "engineVersion": "1.61.1",
-  "engineCommit": "73254e30",
+  "engineCommit": "82cd03e3",
   "repos": [
     {
       "name": "express",
@@ -11,8 +11,9 @@
       "sha": "023767fe9872e029271df1418f73401bff20ff40",
       "why": "the most-depended-on Node package there is; the canonical clean control",
       "blocking": 0,
+      "liveAdvisories": 0,
       "ceiling": 0,
-      "softened": 13
+      "softened": 10
     },
     {
       "name": "flask",
@@ -20,6 +21,7 @@
       "sha": "d318b683471101618febed18996405ad26462110",
       "why": "Python — proves the non-JS rules are held to the same bar",
       "blocking": 2,
+      "liveAdvisories": 0,
       "ceiling": 2,
       "softened": 0
     },
@@ -29,6 +31,7 @@
       "sha": "15ebc8e2fe6932d3e91afa84709523804f8a2537",
       "why": "large plugin-oriented server; exercises the auth and route grammars",
       "blocking": 3,
+      "liveAdvisories": 0,
       "ceiling": 3,
       "softened": 0
     },
@@ -38,6 +41,7 @@
       "sha": "687eb7dcc100ea3e548ebba227173b886789e670",
       "why": "TypeScript HTTP client with a benchmark/ tree — a known scope trap",
       "blocking": 0,
+      "liveAdvisories": 3,
       "ceiling": 0,
       "softened": 3
     },
@@ -47,6 +51,7 @@
       "sha": "eebdf7be39abf0a872671835ccce0c4f03ea497a",
       "why": "every crossFileTaint finding here was false: c.req.query() read as SQL, RegExp.exec() as command exec; 2026-09-05 importCycle type-only elision: the four import cycles it blocked on read every binding inside function bodies — deferred, now a warning — ceiling ratchets down",
       "blocking": 14,
+      "liveAdvisories": 0,
       "ceiling": 14,
       "softened": 57
     },
@@ -56,6 +61,7 @@
       "sha": "7a00236683c79000dbab0d92f6faf0b7fba39f59",
       "why": "monorepo with a docs site and benchmarks; was the worst case at 50, of which 33 were errorSwallow — 23 in benchmark harnesses, 7 the parsing library's coerce-then-check idiom (2026-09-04)",
       "blocking": 2,
+      "liveAdvisories": 0,
       "ceiling": 2,
       "softened": 12
     },
@@ -65,6 +71,7 @@
       "sha": "b3f4d83aad7f589f165a6d8b020b7acba4936f35",
       "why": "Python at scale — the ORM builds SQL by string in django/db, which is the one place that is the job; 74 of 76 \"secrets\" were test fixtures before the identifier-keyed rules learned about test paths",
       "blocking": 46,
+      "liveAdvisories": 0,
       "ceiling": 46,
       "softened": 9
     },
@@ -74,6 +81,7 @@
       "sha": "1ec64ce82451c52d7407fa665ea5f95291430c23",
       "why": "Ruby at scale — instance_eval in the routes loader, backtick-quoted words in error messages that a naive shell-interp rule read as commands",
       "blocking": 34,
+      "liveAdvisories": 0,
       "ceiling": 34,
       "softened": 17
     },
@@ -83,6 +91,7 @@
       "sha": "818c4136ea971c21674525f9053de0d9c7ad8cfe",
       "why": "Java + Thymeleaf templates + a k8s manifest; the reference Spring app",
       "blocking": 8,
+      "liveAdvisories": 0,
       "ceiling": 8,
       "softened": 0
     },
@@ -92,6 +101,7 @@
       "sha": "dcaa4296d111981ffb31ac3eba90bb63e1eb5ab9",
       "why": "Go — the ignored-error idiom the go module could not see until 2026-09-04",
       "blocking": 0,
+      "liveAdvisories": 0,
       "ceiling": 0,
       "softened": 0
     },
@@ -101,6 +111,7 @@
       "sha": "8b30afbfeee457146d29c9c9db47f0ae621a22a8",
       "why": "Rust — first contact 28 blocking: todo!()/unimplemented!() inside #[cfg(test)] modules, dtolnay/rust-toolchain@stable read as a branch pin; what remains is third-party actions on @master and one real unimplemented!()",
       "blocking": 5,
+      "liveAdvisories": 0,
       "ceiling": 5,
       "softened": 4
     },
@@ -110,6 +121,7 @@
       "sha": "cdbd17f7e3257e8ae4207d3c3bef6058452d5f72",
       "why": "PHP — first contact 28 blocking, 23 of them `$redis->eval($lua)` read as PHP eval(); what remains is real eval(var_export()) in the config cache and an unguarded rm -rf in a release script",
       "blocking": 4,
+      "liveAdvisories": 0,
       "ceiling": 4,
       "softened": 0
     },
@@ -119,6 +131,7 @@
       "sha": "3a06afb9258c1f5a9d8e7103bd1479246fa4166a",
       "why": "C# + Angular + React — first contact 39 blocking, 26 of them SEO/a11y rules on the two SPA index.html shells; what remains is real: strict:false, a committed .env, unlabeled inputs, log-and-eat catches in a React component",
       "blocking": 4,
+      "liveAdvisories": 0,
       "ceiling": 4,
       "softened": 0
     },
@@ -128,6 +141,7 @@
       "sha": "f92fad04353817c7eacf8599c8d69d517ba4882c",
       "why": "Kotlin — first contact 21 blocking, 14 of them a test.html under test-resources/ scored as a public page, plus a Gradle compile failure in our environment reported as failing tests; what remains is six real TODO() stubs and one third-party workflow on @main",
       "blocking": 7,
+      "liveAdvisories": 0,
       "ceiling": 7,
       "softened": 0
     },
@@ -137,6 +151,7 @@
       "sha": "630763c5e0de50b2ac8c7e9a20d6c3ec5709a4c8",
       "why": "Swift — first contact 6 blocking: its own reusable workflows on @main and README section gaps; what remains is a *.key file the .gitignore does not cover",
       "blocking": 0,
+      "liveAdvisories": 0,
       "ceiling": 0,
       "softened": 0
     },
@@ -145,8 +160,9 @@
       "url": "https://github.com/nestjs/nest.git",
       "sha": "39fbddae51281ca56bf2fed9123d98e61509066c",
       "why": "TypeScript monorepo (npm workspaces) with an integration/ e2e tree and sample apps — first contact 39 blocking: a logger class told it uses console, tsconfig flags as build verdicts, mongodb://localhost fixtures as secrets, `.catch(() => {})` on a stored promise the caller awaits; what remains is six `reduce(async …)` in the e2e app, two npm-audit advisories and one committed PKCS#8 key",
-      "blocking": 9,
-      "ceiling": 9,
+      "blocking": 7,
+      "liveAdvisories": 2,
+      "ceiling": 7,
       "softened": 1
     },
     {
@@ -155,6 +171,7 @@
       "sha": "66d054454a3339dd8421da9dcf0648f92816f704",
       "why": "pnpm monorepo with members under examples/* and www — first contact 33 blocking: build configs and a CLI told they log to console, an OG-image generator scored as a web page, an Algolia search key as a secret, ternary env fallbacks as hardcoded URLs; what remains is four <img> without alt, a real import cycle, a silent connect in a constructor and `${{ github.event.release.tag_name }}` in a shell; 2026-09-05 importCycle type-only elision: its one import cycle ran through two `import { type X }` edges — elided, never a cycle in emitted JS — ceiling ratchets down",
       "blocking": 7,
+      "liveAdvisories": 0,
       "ceiling": 7,
       "softened": 29
     },
@@ -164,6 +181,7 @@
       "sha": "53ac3c13fcf36dd22fb0dbb757a270ae58e89227",
       "why": "npm-workspaces monorepo with a docs site — first contact 4 blocking: a CA bundle read as a private key, a README link the resolver could not follow, a destructured parameter the scope harvester missed; nothing remains",
       "blocking": 0,
+      "liveAdvisories": 0,
       "ceiling": 0,
       "softened": 3
     },
@@ -173,6 +191,7 @@
       "sha": "dd846dcc8f0653099d1a10c457b1603d96bfafc7",
       "why": "pnpm monorepo, packages/** nesting, a SQL toolkit that builds SQL by design — first contact 90 blocking: `${STORAGE_TABLE}` constants as injection, seeding loops in test/ as N+1, teardown catches as swallows, tsconfig/ and turbo.json as invalid JSON, `base.sha` as shell injection, an un-runnable test:integration as failing tests; what remains is DDL with a computed database name, three import cycles, telemetry catches and a dev-tool page without a description; 2026-09-05 importCycle type-only elision: the three import cycles it blocked on read their bindings in parameter defaults and method bodies — deferred, now a warning — ceiling ratchets down",
       "blocking": 12,
+      "liveAdvisories": 0,
       "ceiling": 12,
       "softened": 18
     },
@@ -181,7 +200,8 @@
       "url": "https://github.com/OWASP/NodeGoat.git",
       "sha": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
       "why": "OWASP's deliberately vulnerable app — the recall floor",
-      "blocking": 53,
+      "blocking": 41,
+      "liveAdvisories": 12,
       "floor": 40,
       "softened": 0
     }
@@ -781,19 +801,6 @@
       "controlPairs": 0
     },
     {
-      "rule": "taint:sink:redirect",
-      "module": "crossFileTaint",
-      "findings": 3,
-      "onZeroCeilingRepos": 3,
-      "repos": [
-        {
-          "name": "express",
-          "sha": "023767fe9872e029271df1418f73401bff20ff40"
-        }
-      ],
-      "controlPairs": 0
-    },
-    {
       "rule": "python:eval",
       "module": "python",
       "findings": 3,
@@ -809,6 +816,27 @@
         }
       ],
       "controlPairs": 0
+    },
+    {
+      "rule": "security:npm-audit",
+      "module": "security",
+      "findings": 3,
+      "onZeroCeilingRepos": 1,
+      "repos": [
+        {
+          "name": "got",
+          "sha": "687eb7dcc100ea3e548ebba227173b886789e670"
+        },
+        {
+          "name": "nest",
+          "sha": "39fbddae51281ca56bf2fed9123d98e61509066c"
+        },
+        {
+          "name": "NodeGoat",
+          "sha": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8"
+        }
+      ],
+      "controlPairs": 1
     },
     {
       "rule": "perf:lazy-loading",
@@ -1025,23 +1053,6 @@
       "controlPairs": 0
     },
     {
-      "rule": "security:npm-audit",
-      "module": "security",
-      "findings": 2,
-      "onZeroCeilingRepos": 0,
-      "repos": [
-        {
-          "name": "nest",
-          "sha": "39fbddae51281ca56bf2fed9123d98e61509066c"
-        },
-        {
-          "name": "NodeGoat",
-          "sha": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8"
-        }
-      ],
-      "controlPairs": 1
-    },
-    {
       "rule": "html:unclosed:html",
       "module": "syntax",
       "findings": 1,
@@ -1102,6 +1113,32 @@
         {
           "name": "fastify",
           "sha": "15ebc8e2fe6932d3e91afa84709523804f8a2537"
+        }
+      ],
+      "controlPairs": 0
+    },
+    {
+      "rule": "security:npm-audit:cacheable-request",
+      "module": "security",
+      "findings": 1,
+      "onZeroCeilingRepos": 1,
+      "repos": [
+        {
+          "name": "got",
+          "sha": "687eb7dcc100ea3e548ebba227173b886789e670"
+        }
+      ],
+      "controlPairs": 0
+    },
+    {
+      "rule": "security:npm-audit:http-cache-semantics",
+      "module": "security",
+      "findings": 1,
+      "onZeroCeilingRepos": 1,
+      "repos": [
+        {
+          "name": "got",
+          "sha": "687eb7dcc100ea3e548ebba227173b886789e670"
         }
       ],
       "controlPairs": 0
@@ -1659,7 +1696,7 @@
     "bands": [
       {
         "confidence": 1,
-        "precision": 157,
+        "precision": 160,
         "recall": 53,
         "rules": {
           "precision": {
@@ -1667,6 +1704,9 @@
             "python:exec": 4,
             "error-swallow:catch-noop": 4,
             "auth-bypass": 1,
+            "security:npm-audit:cacheable-request": 1,
+            "security:npm-audit:http-cache-semantics": 1,
+            "security:npm-audit": 2,
             "quality:console.log/debug/info found": 7,
             "quality:innerHTML assignment detected — use textContent or sanitize": 4,
             "perf:event-cleanup": 12,
@@ -1703,7 +1743,6 @@
             "secrets:gitignore-.env": 1,
             "kotlin:todo-call": 6,
             "security:npm-audit:ws": 1,
-            "security:npm-audit": 1,
             "async-iteration:async-reduce": 6,
             "ci-security:shell-injection": 1,
             "security:sql-injection": 4,
@@ -1776,7 +1815,7 @@
       },
       {
         "confidence": 0.4,
-        "precision": 45,
+        "precision": 42,
         "recall": 0,
         "rules": {
           "precision": {
@@ -1786,7 +1825,6 @@
             "security:path-traversal": 1,
             "log-pii:sensitive-arg": 1,
             "cookie-sec:js-weak-secret": 3,
-            "taint:sink:redirect": 3,
             "a11y:contrast-static": 1,
             "data:migration-drop": 2,
             "sql:drop-table": 2,
@@ -1851,61 +1889,61 @@
     "sweep": [
       {
         "threshold": 0.5,
-        "precisionBlocking": 221,
+        "precisionBlocking": 224,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.6,
-        "precisionBlocking": 221,
+        "precisionBlocking": 224,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.65,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.7,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": true
       },
       {
         "threshold": 0.75,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.8,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.85,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.9,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 0.95,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": false
       },
       {
         "threshold": 1,
-        "precisionBlocking": 157,
+        "precisionBlocking": 160,
         "recallBlocking": 53,
         "shipped": false
       }
@@ -1916,8 +1954,8 @@
     },
     "softened": {
       "precisionTotal": 323,
-      "precisionBlocking": 157,
-      "precisionSoftened": 166,
+      "precisionBlocking": 160,
+      "precisionSoftened": 163,
       "recallTotal": 53,
       "recallBlocking": 53,
       "recallLost": 0
