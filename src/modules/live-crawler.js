@@ -145,6 +145,7 @@ class LiveCrawlerModule extends BaseModule {
       titlesByUrl: new Map(),
       timedOutPages: [],
       offSiteRedirects: [],
+      rateLimited: [],
     };
 
     let playwright = null;
@@ -242,6 +243,7 @@ class LiveCrawlerModule extends BaseModule {
       brokenStylesheets: collectors.brokenStylesheets,
       redirects: collectors.redirects,
       timedOutPages: collectors.timedOutPages,
+      rateLimited: collectors.rateLimited,
       budgetExhausted: collectors.budgetExhausted,
       maxPages: collectors.maxPages,
       crawlElapsedMs: collectors.crawlElapsedMs,
@@ -311,6 +313,18 @@ class LiveCrawlerModule extends BaseModule {
         message: `${timedOutPages.length} of ${attempted} page(s) timed out — a stalled page no longer blocks the rest of the crawl, but it was NOT checked`,
         details: timedOutPages.slice(0, 30),
         suggestion: 'Investigate why the page never responded (slow backend, infinite loop, hung upstream call). Raise --crawl-page-timeout if the page is just slow, not broken.',
+      });
+    }
+
+    const rateLimited = c.rateLimited || [];
+    if (rateLimited.length > 0) {
+      // Not a defect on the site: it asked us to slow down and kept asking
+      // after we backed off. Said, never silently passed (doctrine §6).
+      result.addCheck('crawl:rate-limited', true, {
+        severity: 'info',
+        message: `${rateLimited.length} URL(s) NOT checked — the site rate-limited the crawl (HTTP 429) even after backing off; they are not reported as broken`,
+        details: rateLimited.slice(0, 30),
+        suggestion: 'Re-run with a smaller --max-pages, or allow-list the scanner\'s user agent in the site\'s rate limiter.',
       });
     }
 

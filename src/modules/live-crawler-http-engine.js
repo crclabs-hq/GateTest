@@ -28,6 +28,9 @@ async function crawlWithHttp(ctx) {
     missingMetaDescription, missingCanonical,
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
     timedOutPages, offSiteRedirects, crawlDeadlineTs,
+    // URLs the site rate-limited (429 / 503+Retry-After) after backing off:
+    // NOT checked, never "broken" (live-crawler-http-helpers.js).
+    rateLimited = [],
     auth,
     // #806: canonical alias URL -> the canonical it was folded into
     aliasOf = new Map(),
@@ -92,6 +95,9 @@ async function crawlWithHttp(ctx) {
           status: pageResult.status,
           message: 'third-party redirect chain, terminal host ≠ target',
         });
+      } else if (pageResult.rateLimited) {
+        rateLimited.push({ url, status: pageResult.status, kind: 'page' });
+        continue;
       } else if (pageResult.status >= 400) {
         errors.push({ url, status: pageResult.status, type: 'http-error',
           message: `HTTP ${pageResult.status} ${pageResult.statusText}` });
@@ -170,7 +176,9 @@ async function crawlWithHttp(ctx) {
         try {
           // authHeadersFor is same-origin gated — external images get no auth
           const imgResult = await checkUrl(imgUrl, timeout, authHeadersFor(imgUrl, auth));
-          if (imgResult.status >= 400) {
+          if (imgResult.rateLimited) {
+            rateLimited.push({ url: imgResult.url, status: imgResult.status, kind: 'image' });
+          } else if (imgResult.status >= 400) {
             brokenImages.push({ page: url, image: imgUrl, status: imgResult.status });
           }
         } catch {
@@ -178,13 +186,15 @@ async function crawlWithHttp(ctx) {
         }
       }
 
-      await collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth);
+      await collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth, rateLimited);
 
       if (checkExternal) {
         for (const link of links.external.slice(0, 20)) {
           try {
             const linkResult = await checkUrl(link.href, timeout);
-            if (linkResult.status >= 400) {
+            if (linkResult.rateLimited) {
+            rateLimited.push({ url: linkResult.url, status: linkResult.status, kind: 'external-link' });
+          } else if (linkResult.status >= 400) {
               brokenLinks.push({ page: url, link: link.href, status: linkResult.status, type: 'external' });
             }
           } catch {
@@ -214,7 +224,7 @@ async function crawlWithHttp(ctx) {
   return { budgetExhausted };
 }
 
-async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth) {
+async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth, rateLimited = []) {
   const scriptRegex = /<script[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi;
   const scriptUrls = new Set();
   let scriptMatch;
@@ -227,7 +237,8 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
   for (const scriptUrl of scriptUrls) {
     try {
       const r = await checkUrl(scriptUrl, timeout, authHeadersFor(scriptUrl, auth));
-      if (r.status >= 400) brokenScripts.push({ page: url, script: scriptUrl, status: r.status });
+      if (r.rateLimited) rateLimited.push({ url: r.url, status: r.status, kind: 'script' });
+      else if (r.status >= 400) brokenScripts.push({ page: url, script: scriptUrl, status: r.status });
     } catch {
       brokenScripts.push({ page: url, script: scriptUrl, status: 'timeout/error' });
     }
@@ -245,7 +256,8 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
   for (const styleUrl of styleUrls) {
     try {
       const r = await checkUrl(styleUrl, timeout, authHeadersFor(styleUrl, auth));
-      if (r.status >= 400) brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: r.status });
+      if (r.rateLimited) rateLimited.push({ url: r.url, status: r.status, kind: 'stylesheet' });
+      else if (r.status >= 400) brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: r.status });
     } catch {
       brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: 'timeout/error' });
     }
