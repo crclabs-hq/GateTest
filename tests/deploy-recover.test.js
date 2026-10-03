@@ -62,7 +62,9 @@ test('without DEPLOY_RECOVER the script still refuses a non-main box and changes
   const { tmp, box } = makeBox();
   try {
     const r = runSyncPhase(box, { DEPLOY_RECOVER: '0' });
-    assert.notEqual(r.status, 0);
+    // 10, not 1: the box reports only "exited N", so each refusal has its own
+    // code (2026-10-03: 464 identical "exited 1" failures, cause unknowable).
+    assert.equal(r.status, 10, r.stderr);
     assert.match(r.stderr, /not main/);
     assert.equal(git(box, 'rev-parse', '--abbrev-ref', 'HEAD'), 'jarvis/fix-874');
     assert.equal(fs.readFileSync(path.join(box, 'app.txt'), 'utf8'), 'v1 + hand fix\n');
@@ -104,4 +106,17 @@ test('only a manual dispatch can set the flag, and it never reaches the script a
   const wf = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'deploy-box.yml'), 'utf8');
   assert.match(wf, /DEPLOY_RECOVER: \$\{\{ \(github\.event_name == 'workflow_dispatch' && inputs\.recover\) && '1' \|\| '0' \}\}/);
   assert.ok(!/run:[\s\S]*\$\{\{\s*inputs\.recover/.test(wf.split('Deploy over SSH')[1].split('- name:')[0]), 'the input must not be interpolated into the run script');
+});
+
+test('a hand edit on main refuses with its own exit code (11), changes nothing', { skip: !HAVE_BASH && 'bash not available' }, () => {
+  const { tmp, box } = makeBox();
+  try {
+    git(box, 'checkout', '-q', '-f', 'main');
+    fs.writeFileSync(path.join(box, 'app.txt'), 'v1 + edit on main\n');
+    const r = runSyncPhase(box, { DEPLOY_RECOVER: '0' });
+    assert.equal(r.status, 11, r.stderr);
+    assert.match(r.stderr, /unexpected uncommitted changes/);
+    assert.match(r.stderr, /app\.txt/);
+    assert.equal(fs.readFileSync(path.join(box, 'app.txt'), 'utf8'), 'v1 + edit on main\n');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });

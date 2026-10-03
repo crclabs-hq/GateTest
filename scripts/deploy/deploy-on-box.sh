@@ -10,6 +10,18 @@
 #   GATETEST_APP_DIR      — repo checkout path   (default: the repo this script lives in)
 #   GATETEST_RESTART_CMD  — restart command      (default: auto-detect pm2 'gatetest',
 #                           then systemd 'gatetest', else warn and skip)
+#
+# Exit codes — distinct per refusal, because the box reports only
+# "deploy-on-box.sh exited N" to /api/platform-status (lastPullDeploy.reason)
+# and the journal is reachable only on the box. With every refusal at 1, 464
+# consecutive failures (2026-10-02 → 03) could not be told apart from outside.
+#   0   deployed, or already current
+#   3   post-deploy smoke: a probed route did not return 200
+#   10  the checkout is not on main (branch guard)
+#   11  tracked files changed on the box that this script did not change
+#   12  a `next build` is still running after the wait
+#   13  `systemctl list-unit-files` failed — restart unit unknown
+#   other  the failing command's own status (git 128, npm/next build 1, …)
 set -euo pipefail
 
 APP_DIR="${GATETEST_APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
@@ -81,7 +93,7 @@ if [ "$BRANCH" != "main" ]; then
   echo "[deploy] ERROR: $APP_DIR is on branch '$BRANCH', not main — production deploys main only." >&2
   echo "[deploy]        Save any hand edits first (git stash push -u -m box-edits-$(date -u +%F), then re-apply them in a PR)," >&2
   echo "[deploy]        then: cd $APP_DIR && git checkout main && re-run the Deploy workflow." >&2
-  exit 1
+  exit 10
 fi
 SELF_DIRTIED='package-lock.json website/app/data/build-info.json website/app/data/changelog.json website/package-lock.json'
 UNEXPECTED="$(git status --porcelain --untracked-files=no | awk '{print $2}' | while read -r f; do
@@ -90,7 +102,7 @@ done)"
 if [ -n "$UNEXPECTED" ]; then
   echo "[deploy] ERROR: unexpected uncommitted changes on the box — resolve manually first." >&2
   echo "$UNEXPECTED" >&2
-  exit 1
+  exit 11
 fi
 
 BEFORE=$(git rev-parse HEAD)
@@ -145,7 +157,7 @@ done
 if pgrep -f "next build" >/dev/null 2>&1; then
   echo "[deploy] ERROR: a next build is still running after waiting — not starting a second one" >&2
   pgrep -af "next build" >&2 || true
-  exit 1
+  exit 12
 fi
 
 npm install --no-audit --no-fund
@@ -199,7 +211,7 @@ else
     if ! UNIT_FILES="$(systemctl list-unit-files --no-legend)"; then
       echo "[deploy] ERROR: 'systemctl list-unit-files' failed — cannot determine the restart unit." >&2
       echo "[deploy]        The new build is in place but the OLD process may still be serving." >&2
-      exit 1
+      exit 13
     fi
   fi
   RESTART_UNIT=""
