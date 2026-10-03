@@ -9,6 +9,7 @@ const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const { isNonUserFacingPage, isSpaShell } = require('../core/scan-scope');
 const { matchTitleTag, matchMetaDescriptionTag } = require('../core/html-extract');
+const { isApiEndpointPath } = require('../core/api-path');
 
 class SeoModule extends BaseModule {
   constructor() {
@@ -217,6 +218,13 @@ class SeoModule extends BaseModule {
     const label = (livePage && livePage.url) || 'fetched page';
     if (!html) {
       this._notChecked(result, 'the shared page fetch for this scan returned no HTML body to audit');
+      return false;
+    }
+    if (isApiEndpointPath(label)) {
+      result.addCheck('seo:live-summary', true, {
+        severity: 'info',
+        message: `${label} is an API / GraphQL endpoint, not a content page — metadata checks not applicable`,
+      });
       return false;
     }
     if (isSpaShell(html)) {
