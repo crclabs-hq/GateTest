@@ -205,7 +205,13 @@ const DATA_TABLE_VALUE_RE = /(?:[{,]\s*(?:[A-Za-z_$][\w$]*|['"][^'"]*['"])\s*:\s
 // value, not a fetch target — `isNetworkCallSite` (checked before either
 // regex runs) is what still fires when the wrapping call itself IS the
 // network call (`url: fetch("http://localhost/x")` keeps blocking).
-const DATA_TABLE_CALL_ARG_RE = /(?:[{,]\s*(?:[A-Za-z_$][\w$]*|['"][^'"]*['"])\s*:\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(\s*['"`]$)|(?:[,[]\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(\s*['"`]$)/;
+// For the helper-wrapped form only, `^` is a property position too: in a
+// multi-line table the key opens its own line (`    health:
+// http("http://127.0.0.1:9120/health"),`, Tallrig's service registry,
+// 2026-10-03). A plain multi-line value (`  apiBase: "http://localhost:3000",`
+// later passed to fetch) is NOT exempted — tests/confidence-pr85-regression
+// pins it as a real leak.
+const DATA_TABLE_CALL_ARG_RE = /(?:(?:^|[{,])\s*(?:[A-Za-z_$][\w$]*|['"][^'"]*['"])\s*:\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(\s*['"`]$)|(?:[,[]\s*[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*\s*\(\s*['"`]$)/;
 
 // `probe(url = "http://127.0.0.1:9000/health")` — a configurable default,
 // not a hardcoded target. Covers a plain default and a TS-typed one

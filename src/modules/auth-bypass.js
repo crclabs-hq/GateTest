@@ -86,7 +86,7 @@ const AUTH_READS = [
 // up with how teams name their guards — GateTest's own admin API uses
 // `isAdminRequest`, which `\bisAdmin\b` never matched, so the module reported
 // 83 "unprotected" admin routes on this repo (2026-08-18 audit).
-const AUTH_HEURISTIC_RE = /\b(?:is|has|require|requires|verify|check|assert|ensure|need|needs|with|must|guard|enforce|validate|authorize|authorise|protect)(?:[A-Z][A-Za-z0-9]*?)?(?:Auth|Admin|Access|Session|Permission|Perm|User|Owner|Role|Login|Logged|Token|Scope|Api[Kk]ey|Secret|Signature|Signed|Cron|Tick|Bearer|Credential|Identity|Principal|Member|Tenant|Account)\w*\b|\bpassport\.authenticate\b|\b(?:auth|authn|authz|authGuard|jwtGuard|apiKeyGuard|adminOnly|adminGuard|requireAdmin|isAuthorisedTick|isAuthorizedTick)\b/;
+const AUTH_HEURISTIC_RE = /\b(?:is|has|require|requires|verify|check|assert|ensure|need|needs|with|must|guard|enforce|validate|authorize|authorise|protect)(?:[A-Z][A-Za-z0-9]*?)?(?:Auth|Admin|Access|Session|Permission|Perm|User|Owner|Role|Login|Logged|Token|Scope|Api[Kk]ey|Secret|Signature|Signed|Cron|Tick|Bearer|Credential|Identity|Principal|Member|Tenant|Account)\w*\b|\bpassport\.authenticate\b|\bauthenticate[A-Z]\w*\b|\bresolve\w*Access\b|\b(?:auth|authn|authz|authGuard|jwtGuard|apiKeyGuard|adminOnly|adminGuard|requireAdmin|isAuthorisedTick|isAuthorizedTick)\b/;
 
 const AUTH_SIGNAL_RE = new RegExp(
   [
@@ -342,12 +342,29 @@ function delegatedAuth(content, body, paramName, bodies, seen = new Set(), depth
  * Returns the content offset after which routes count as guarded, or -1.
  */
 function routerLevelAuthOffset(content) {
-  const re = /\.use\s*\(([^)]*)\)/g;
+  // The argument list is read to its MATCHING paren: `[^)]*` stopped at the
+  // first `)`, so `app.use("/agents/v1/*", async (c, next) => { …
+  // authenticateFleetAgent… })` was read as `"/agents/v1/*", async (c, next`
+  // and the auth inside the callback was never seen (Tallrig, 2026-10-03:
+  // eight Hono services whose every route sits behind such a use()).
+  const re = /\.use\s*\(/g;
   let m;
   while ((m = re.exec(content)) !== null) {
-    if (AUTH_SIGNAL_RE.test(m[1])) return m.index;
+    if (AUTH_SIGNAL_RE.test(balancedArgs(content, re.lastIndex - 1))) return m.index;
   }
   return -1;
+}
+
+/** Text between `(` at `open` and its matching `)`, capped at `cap` chars. */
+function balancedArgs(content, open, cap = 4000) {
+  let depth = 0;
+  const end = Math.min(content.length, open + cap);
+  for (let i = open; i < end; i += 1) {
+    const ch = content[i];
+    if (ch === '(') depth += 1;
+    else if (ch === ')' && (depth -= 1) === 0) return content.slice(open + 1, i);
+  }
+  return content.slice(open + 1, end);
 }
 
 /**

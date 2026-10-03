@@ -243,6 +243,31 @@ function isGuardedRead(raw, end) {
     || /\b(?:os\.environ\.get|os\.getenv|getenv)\s*\(\s*['"][A-Z0-9_]+['"]\s*,/.test(raw);
 }
 
+// JS reads whose absent value only selects a branch: compared (`=== "1"`,
+// `!== "1"`), negated or coerced (`!X`, `!!X`, `Boolean(X)`), the whole
+// condition of an `if`/`while`, or the left of `&&`. (2026-10-03: 30 of the
+// 36 blocking misses on Gluecron were `process.env.FLAG === "1"` toggles.)
+function isPresenceCheck(raw, start, end) {
+  const before = raw.slice(0, start);
+  const tail = raw.slice(end);
+  return /^\s*\)*\s*(?:[!=]==?|&&)/.test(tail)
+    || /(?:!|\bBoolean\(\s*)\s*$/.test(before)
+    || (/\b(?:if|while)\s*\(\s*$/.test(before) && /^\s*\)/.test(tail));
+}
+
+// `const raw = process.env.X;` (optionally through Number/parseInt/String)
+// whose binding the next five lines test — `!raw`, `raw ||`, `raw ?? d`,
+// `Number.isFinite(raw)`, `raw > 0` — before anything else can use it.
+const BOUND_READ_RE = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::\s*[^=]+)?=\s*(?:(?:Number|parseInt|parseFloat|String)\(\s*)?$/;
+function boundThenChecked(raw, start, end, masked, i) {
+  const bm = BOUND_READ_RE.exec(raw.slice(0, start));
+  if (!bm || !/^\s*\)?\s*(?:;|$)/.test(raw.slice(end))) return false;
+  const n = bm[1].replace(/\$/g, '\\$');
+  const test = new RegExp(`!\\s*${n}\\b|\\b${n}\\s*(?:\\?\\?|\\|\\||\\?(?![.?])|[!=]==?|[<>]=?)|\\b(?:isFinite|isNaN|isInteger)\\(\\s*${n}\\b|\\b(?:if|while)\\s*\\(\\s*${n}\\s*\\)`);
+  // Joined, so a test split across lines (`const m = s\n  ? a : b`) counts.
+  return test.test(masked.slice(i + 1, i + 6).join('\n'));
+}
+
 class EnvVarsModule extends BaseModule {
   constructor() {
     super(
@@ -414,7 +439,17 @@ class EnvVarsModule extends BaseModule {
     const lines = content.split(/\r?\n/);
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i].trim();
-      if (!line || line.startsWith('#')) continue;
+      if (!line) continue;
+      // `# KEY=` — the usual way an example file documents an OPTIONAL key
+      // (Gluecron .env.example, 2026-10-03). It is declared, so a read of it
+      // is not missing-from-example; it is not the contract, so nothing
+      // reports it as unused. The key must follow the `#` directly: prose
+      // (`# Set FOO=1 to enable`) is not a declaration.
+      if (line.startsWith('#')) {
+        const commented = /^#\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=/.exec(line);
+        if (commented && ENV_KEY_RE.test(commented[1])) out.add(commented[1]);
+        continue;
+      }
       // Remove optional `export `
       const body = line.replace(/^export\s+/, '');
       const eq = body.indexOf('=');
@@ -512,6 +547,7 @@ class EnvVarsModule extends BaseModule {
     const rel = repoRelative(projectRoot, file);
     const ext = path.extname(file).toLowerCase();
     const isJs = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.mts', '.cts'].includes(ext);
+    const isJsx = ext === '.jsx' || ext === '.tsx';
     const lang = isJs ? 'js' : ext === '.go' ? 'go' : ext === '.py' ? 'py' : null;
     if (!lang) return;
     const record = (key, ref) => {
@@ -581,12 +617,19 @@ class EnvVarsModule extends BaseModule {
         }
       }
 
-      for (const { key, end, alias } of this._envRefsOn(code, raw, lang, aliasOk)) {
+      for (const { key, start, end, alias } of this._envRefsOn(code, raw, lang, aliasOk)) {
+        // JSX text naming a key (`<code>process.env.INPUT</code>` on a docs
+        // page) is prose, not a read; the stripper only masks strings.
+        if (isJsx && /^\s*<\//.test(raw.slice(end))) continue;
         // A read WITH a fallback (`|| default`, `?? default`, `.get(K, d)`,
         // `getenv(K, d)`, `?.`) cannot break boot when the key is absent —
         // that is exactly what the fallback is for. Record it as guarded.
         // So is a read through an `env` binding (see ENV_ALIAS_RE).
-        const guarded = alias || isGuardedRead(raw, end);
+        // So is a presence check (`=== "1"`, `!X`, `if (X)`) and a binding
+        // the next lines test before use (`const s = X; if (!s) …`): an
+        // absent key takes the branch the code wrote for it.
+        const guarded = alias || isGuardedRead(raw, end)
+          || (isJs && (isPresenceCheck(raw, start, end) || boundThenChecked(raw, start, end, masked, i)));
         record(key, { file: rel, line: i + 1, guarded, lang });
       }
     }
@@ -640,7 +683,7 @@ class EnvVarsModule extends BaseModule {
           end += km[0].length;
         }
         if (!key || !ENV_KEY_RE.test(key)) continue;
-        refs.push({ key, end, alias });
+        refs.push({ key, start: m.index, end, alias });
       }
     }
     return refs;

@@ -239,13 +239,36 @@ class NPlusOneModule extends BaseModule {
         continue;
       }
 
+      // The loop's own header says how many round trips it can make.
+      // Over chunks (`i += CHUNK`, `chunk(rows, N)`) it IS the batching
+      // fix; over a literal bound (`attempt < 5`) it is a retry, a constant
+      // number of queries. Neither grows with the data (Gluecron deps.ts,
+      // symbols.ts, ledger-import.ts, gists.tsx, 2026-10-03).
+      const header = masked.slice(Math.max(0, loopStart - 1), loopStart + 1).join('\n');
+      const chunked = /\+=\s*[\w.]*(?:CHUNK|BATCH|chunk|batch|Chunk|Batch|PAGE_SIZE|pageSize)\w*/.test(header)
+        || /\bfor\s*\(\s*(?:const|let|var)\s+[\w$]+\s+of\s+(?:await\s+)?(?:[\w$.]+\.)?(?:chunk|chunks|chunked|batches|inChunks|chunkArray)\s*\(/.test(header);
+      const bounded = /\bfor\s*\(\s*let\s+([\w$]+)\s*=\s*\d+\s*;\s*\1\s*<=?\s*(?:\d{1,2}|[\w$.]*(?:RETR|ATTEMPT|TRIES)\w*)\s*;/i.test(header);
+      if (chunked || bounded) {
+        result.addCheck(`n-plus-one:batched-ok:${rel}:${i + 1}`, true, {
+          severity: 'info',
+          file: rel,
+          line: i + 1,
+          loopStart: loopStart + 1,
+          message: `${rel}:${i + 1} query inside a loop over ${chunked ? 'chunks — the batched fix shape' : 'a small literal bound (a retry)'}, not an N+1`,
+        });
+        continue;
+      }
+      // Over a module constant (`for (const l of DEFAULT_LABELS)`) the count
+      // is fixed in source: reported, as a warning.
+      const constantList = /\bfor\s*\(\s*(?:const|let|var)\s+[\w$]+\s+of\s+[A-Z][A-Z0-9_]{2,}\s*\)/.test(header);
+
       // A test or benchmark harness seeding rows in a loop is not a
       // production round-trip. Same split error-swallow makes: `_isTestPath`
       // plus the engine's one definition of a harness dir. Nineteen of
       // prisma's 25 were `db.public.X.create(…)` in test setup. SCOPE
       // changes the severity, never the report — the finding still prints.
       const isHarness = this._isTestPath(rel) || HARNESS_DIR_RE.test(rel.replace(/\\/g, '/'));
-      const severity = isHarness || opaque ? 'warning' : 'error';
+      const severity = isHarness || opaque || constantList ? 'warning' : 'error';
       const why = opaque
         ? `executes a pre-built statement per iteration (loop opens at line ${loopStart + 1}) — a statement list being replayed is not an N+1, a per-row lookup is; the line cannot tell which, so verify`
         : `database query inside a loop body (loop opens at line ${loopStart + 1}) — every iteration hits the database, producing an N+1 pattern that is fast in staging and slow in prod`;
@@ -257,7 +280,8 @@ class NPlusOneModule extends BaseModule {
         match: matched.slice(0, 60),
         ...(isHarness ? { harness: true } : {}),
         ...(opaque ? { opaque: true } : {}),
-        message: `${rel}:${i + 1} ${why}${isHarness ? ' (test/benchmark harness — warning, not a verdict)' : ''}`,
+        ...(constantList ? { constantList: true } : {}),
+        message: `${rel}:${i + 1} ${why}${isHarness ? ' (test/benchmark harness — warning, not a verdict)' : ''}${constantList ? ' (the loop is over a constant list fixed in source, so the count does not grow with data — warning)' : ''}`,
         suggestion: 'Batch: collect the IDs first and issue one query (e.g. `prisma.user.findMany({ where: { id: { in: ids } } })`), or wrap with `await Promise.all(list.map(async (x) => ...))` to run queries in parallel. For write-heavy loops, use a bulk insert / `createMany`.',
       });
     }

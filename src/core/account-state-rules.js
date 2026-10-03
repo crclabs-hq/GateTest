@@ -145,6 +145,52 @@ function suspendKeepsKeys(relPath, masked) {
   return findings;
 }
 
+// ── unset-credential-allows (TALLRIG-2026-054) ──────────────────────────
+// An auth check whose "credential not configured" branch lets the request
+// through on any path: `const expected = process.env.X_API_KEY; if (!expected)
+// { if (NODE_ENV === "production") return error; return next(); }`. Whether
+// auth runs then keys on an environment label, not on the credential, and a
+// box with NODE_ENV unset serves every caller. A missing credential must be
+// an error in every environment. Read on the RAW line (the bracketed key is
+// a string) for the binding, on the masked lines for the block.
+const CREDENTIAL_ENV_BINDING_RE = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*process\.env(?:\.|\[\s*["'`])([A-Z0-9_]*(?:KEY|TOKEN|SECRET|PASSWORD)[A-Z0-9_]*)/;
+const LETS_THROUGH_RE = /\bnext\s*\(\s*\)|\breturn\s+true\b/;
+
+function unsetCredentialAllows(relPath, masked) {
+  const raw = masked.raw;
+  const findings = [];
+  raw.forEach((line, i) => {
+    const b = CREDENTIAL_ENV_BINDING_RE.exec(line);
+    if (!b) return;
+    const name = b[1].replace(/\$/g, '\\$');
+    const guard = new RegExp(`\\bif\\s*\\(\\s*!\\s*${name}\\s*\\)\\s*\\{`);
+    for (let j = i + 1; j <= i + 8 && j < masked.length; j += 1) {
+      if (!guard.test(masked[j] || '')) continue;
+      // The guarded block, by brace depth on the masked lines.
+      let depth = 0;
+      const body = [];
+      for (let k = j; k < masked.length && k <= j + 30; k += 1) {
+        const ln = masked[k] || '';
+        body.push(ln);
+        for (const ch of ln) { if (ch === '{') depth += 1; else if (ch === '}') depth -= 1; }
+        if (depth <= 0 && k > j) break;
+        if (depth <= 0 && /\}/.test(ln.slice(ln.indexOf('{') + 1))) break;
+      }
+      if (LETS_THROUGH_RE.test(body.join('\n'))) {
+        findings.push({
+          rule: 'unset-credential-allows',
+          line: j + 1,
+          severity: 'warning',
+          message: `${relPath}:${j + 1} lets the request through when \`${b[2]}\` is not configured — whether auth runs depends on the environment, not on the credential, so a box with it unset serves every caller`,
+          suggestion: 'Refuse (503) when the credential is unset, in every environment. Give tests and local dev a real test credential instead of a bypass.',
+        });
+      }
+      return;
+    }
+  });
+  return findings;
+}
+
 function scanAccountState(relPath, content) {
   const raw = String(content).split(/\r?\n/);
   const masked = maskSource(String(content), relPath).split(/\r?\n/);
@@ -154,7 +200,8 @@ function scanAccountState(relPath, content) {
     ...denyListStatus(relPath, masked),
     ...keyDoorOwnerUnchecked(relPath, masked),
     ...suspendKeepsKeys(relPath, masked),
+    ...unsetCredentialAllows(relPath, masked),
   ];
 }
 
-module.exports = { scanAccountState, identifierAsCredential, denyListStatus, keyDoorOwnerUnchecked, suspendKeepsKeys };
+module.exports = { scanAccountState, identifierAsCredential, denyListStatus, keyDoorOwnerUnchecked, suspendKeepsKeys, unsetCredentialAllows };

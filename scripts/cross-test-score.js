@@ -64,7 +64,7 @@ const CLASS_RULES = {
   'tenant-scope-missing': ['unscoped-lookup'],
   'removed-resource-still-routes': ['soft-state-unfiltered'],
   'identifier-as-credential': ['identifier-as-credential'],
-  'fail-open-auth': ['deny-list-status', 'key-door-owner-unchecked'],
+  'fail-open-auth': ['deny-list-status', 'key-door-owner-unchecked', 'unset-credential-allows'],
   'retired-host-record': ['hardcoded-dns-target'],
   'retired-host-literal': ['hardcoded-tenant-domain'],
   'delete-leaves-resource-running': ['delete-without-teardown', 'stop-keeps-claim'],
@@ -72,6 +72,9 @@ const CLASS_RULES = {
   'client-controlled-identity': ['client-identity-header'],
   'cross-tenant-routing': ['unowned-route-pool'],
   'soft-delete-keeps-access': ['suspend-keeps-keys'],
+  'unobserved-reads-as-clean': ['devnull-swallow', 'pipe-true'],
+  'swallowed-failure-reported-success': ['pipe-true', 'devnull-swallow'],
+  'wildcard-bind': ['wildcard-bind'],
 };
 
 const SEP_RE = /^\s*(?:\/\/|--|#)\s*\.\.\.\s*([^\s:]+\.[\w]+):(\d+)\s*$/;
