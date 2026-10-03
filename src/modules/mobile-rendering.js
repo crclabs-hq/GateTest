@@ -26,6 +26,7 @@
 const path = require('path');
 const BaseModule = require('./base-module');
 const { botUserAgent } = require('../core/site-url');
+const { findClippedText } = require('../core/clipped-text');
 
 const DEFAULT_VIEWPORTS = [
   { name: 'iphone', width: 390, height: 844 },
@@ -117,7 +118,7 @@ class MobileRenderingModule extends BaseModule {
       return;
     }
 
-    const stats = { overflow: [], tinyText: [], exempted: [], pageErrors: [], pagesChecked: 0 };
+    const stats = { overflow: [], clipped: [], tinyText: [], exempted: [], pageErrors: [], pagesChecked: 0 };
 
     try {
       for (const route of routes) {
@@ -189,6 +190,11 @@ class MobileRenderingModule extends BaseModule {
 
       if (findings.hasOverflow) {
         stats.overflow.push({ route, viewport: viewport.name, width: viewport.width, overflowPx: findings.overflowPx });
+      } else {
+        // No sideways scroll, but a container may be hiding the overflow —
+        // text cut off with nothing to scroll to (core/clipped-text.js).
+        const clipped = await page.evaluate(findClippedText, viewport.width);
+        if (clipped.length > 0) stats.clipped.push({ route, viewport: viewport.name, width: viewport.width, samples: clipped });
       }
       if (findings.tinyTextSamples.length > 0) {
         stats.tinyText.push({ route, viewport: viewport.name, width: viewport.width, samples: findings.tinyTextSamples });
@@ -215,6 +221,16 @@ class MobileRenderingModule extends BaseModule {
       result.addCheck('mobile-rendering:overflow', true, {
         severity: 'info',
         message: `${stats.pagesChecked} page/viewport combination(s) checked — no horizontal overflow`,
+      });
+    }
+
+    if (stats.clipped.length > 0) {
+      const narrowClipped = stats.clipped.filter((c) => NARROW_VIEWPORT_NAMES.has(c.viewport));
+      result.addCheck('mobile-rendering:clipped-text', false, {
+        severity: narrowClipped.length > 0 ? 'error' : 'warning',
+        message: `${stats.clipped.length} page/viewport combination(s) cut text off at the right edge with no way to scroll to it${narrowClipped.length > 0 ? ` (${narrowClipped.length} on phone/tablet widths)` : ''}`,
+        details: stats.clipped.slice(0, 30),
+        suggestion: 'Let the text wrap (max-width: 100%, overflow-wrap: anywhere) or shrink the element that pushes it past the viewport; a container\'s overflow: hidden is hiding the overflow, not fixing it',
       });
     }
 
