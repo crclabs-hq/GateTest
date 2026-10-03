@@ -104,9 +104,98 @@ function softStateUnfiltered(relPath, masked) {
   return findings;
 }
 
-function scanAccessScope(relPath, content) {
-  const masked = maskSource(String(content), relPath).split(/\r?\n/);
-  return [...unscopedLookup(relPath, masked), ...softStateUnfiltered(relPath, masked)];
+
+// ── client-identity-header (TALLRIG-2026-053) ───────────────────────────
+// An identity the server enforces on (tenant / user / org / account id) read
+// from a header the CLIENT sets: `c.req.header("x-tenant-id")`,
+// `req.headers["x-user-id"]`, `headers.get("x-org-id")`. Any caller can name
+// any tenant — its own rate-limit bucket, another tenant's limits, another
+// user's data. Read on the RAW line (the header name is inside quotes).
+const IDENTITY_HEADER_RE = /(?:\.header\(\s*|\.headers\.get\(\s*|\.headers\[\s*|\.get\(\s*)["'`](x-(?:tenant|user|org|organization|account|customer|workspace|team|owner|principal)-id)["'`]/i;
+// The value is verified, not trusted: an HMAC / signature / JWT check nearby.
+const VERIFIED_NEAR_RE = /\b(?:verify\w*|Verify\w*|hmac|Hmac|HMAC|timingSafeEqual|signature|Signature|jwt|Jwt|JWT|internalToken|INTERNAL_\w*SECRET)\b/;
+
+function clientIdentityHeader(relPath, masked) {
+  const raw = masked.raw;
+  const findings = [];
+  const hits = [];
+  raw.forEach((line, i) => {
+    if (/^\s*(?:\/\/|\*|\/\*)/.test(line)) return;
+    const m = line.match(IDENTITY_HEADER_RE);
+    if (!m) return;
+    const near = masked.slice(Math.max(0, i - 6), i + 7).join('\n');
+    if (VERIFIED_NEAR_RE.test(near)) return;
+    hits.push({ line: i + 1, header: m[1] });
+  });
+  // One finding per file: the trust decision is the file's, not each read's.
+  if (hits.length) {
+    const { line, header } = hits[0];
+    const more = hits.length > 1 ? ` (and ${hits.length - 1} more read${hits.length > 2 ? 's' : ''} in this file)` : '';
+    findings.push({
+      rule: 'client-identity-header',
+      line,
+      severity: 'warning',
+      message: `${relPath}:${line} takes the caller's identity from the \`${header}\` request header${more} — the client sets it, so any caller can claim any ${header.replace(/^x-|-id$/gi, '')} (its rate-limit bucket, its limits, its data) unless a proxy you control overwrites it`,
+      suggestion: 'Derive the identity from what the server authenticated (session, verified key, signed token). If a gateway you control always overwrites this header, say so where it is read.',
+    });
+  }
+  return findings;
 }
 
-module.exports = { scanAccessScope, unscopedLookup, softStateUnfiltered };
+// ── unowned-route-pool (TALLRIG-2026-050) ───────────────────────────────
+// A resolver that loads EVERY tenant's routes / domains / aliases, filtered
+// only by an enabled flag, and picks one for an address or host — so a tenant
+// that writes a route for someone else's domain can win it. Ownership proof
+// (a verified-domain join, an owner/tenant predicate) is what is missing.
+const ROUTE_TABLE_RE = /\.from\(\s*(\w*(?:[Rr]outes?|[Dd]omains?|[Aa]liases|[Mm]appings?|[Cc]laims?|[Hh]ostnames?|[Rr]edirects?)\w*)\s*\)/;
+const OWNERSHIP_RE = /\b(?:\w*[Vv]erified\w*|\w*[Oo]wner\w*|\w*[Tt]enant\w*|userId|orgId|accountId|\w*[Oo]wnership\w*)\b/;
+
+function unownedRoutePool(relPath, masked) {
+  const findings = [];
+  masked.forEach((line, i) => {
+    const t = line.match(ROUTE_TABLE_RE);
+    if (!t) return;
+    // The function this select lives in must resolve an address / host.
+    const head = masked.slice(Math.max(0, i - 8), i + 1).join('\n');
+    if (!/\b(?:address|host|hostname|domain|email|recipient|sni|fqdn)\b/i.test(head)) return;
+    // The where clause: next few lines up to the end of the statement.
+    let where = '';
+    for (let k = i; k < Math.min(masked.length, i + 6); k += 1) {
+      where += `${masked[k]}\n`;
+      if (/;\s*$/.test(masked[k])) break;
+    }
+    if (!/\.where\(/.test(where)) return;
+    const pred = where.slice(where.indexOf('.where('));
+    if (OWNERSHIP_RE.test(pred)) return;
+    // The ONLY condition is a soft-state flag: no `and(`, no match on a key.
+    const cond = pred.replace(/^\.where\(\s*/, '').replace(/\)\s*;?\s*[\s\S]*$/, ')');
+    if (!/^(?:isNull|isNotNull|eq|ne)\s*\(\s*[\w$.]+\.(?:disabledAt|deletedAt|enabled|active|isActive|isEnabled)\b[^()]*\)$/.test(cond.trim())) return;
+    // …and the pool is then matched against an address / host.
+    const later = masked.slice(i, i + 25).join('\n');
+    if (!/\b(?:match\w*|Match\w*|pick\w*|select\w*Route|resolve\w*)\s*\([^)]*\b(?:address|host|hostname|domain|email|recipient)\b|\.find\([^)]*\b(?:address|host|hostname|domain)\b/.test(later)) return;
+    // Ownership could still be checked after the pool is loaded.
+    const after = masked.slice(i, i + 30).join('\n');
+    if (/\b(?:verified\w*|Verified\w*|ownership\w*|Ownership\w*|proveOwnership|domainVerified)\b/.test(after)) return;
+    findings.push({
+      rule: 'unowned-route-pool',
+      line: i + 1,
+      severity: 'warning',
+      message: `${relPath}:${i + 1} picks a \`${t[1]}\` row for an address/host out of every tenant's enabled rows — nothing proves the winning tenant controls that domain, so one tenant can route another's traffic or mail to itself`,
+      suggestion: 'Gate candidacy on proof of ownership (join the verified-domain table, or require the route\'s domain to be verified for its tenant) before matching.',
+    });
+  });
+  return findings;
+}
+
+function scanAccessScope(relPath, content) {
+  const masked = maskSource(String(content), relPath).split(/\r?\n/);
+  masked.raw = String(content).split(/\r?\n/);
+  return [
+    ...unscopedLookup(relPath, masked),
+    ...softStateUnfiltered(relPath, masked),
+    ...clientIdentityHeader(relPath, masked),
+    ...unownedRoutePool(relPath, masked),
+  ];
+}
+
+module.exports = { scanAccessScope, unscopedLookup, softStateUnfiltered, clientIdentityHeader, unownedRoutePool };

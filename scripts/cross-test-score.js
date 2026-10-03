@@ -69,6 +69,8 @@ const CLASS_RULES = {
   'retired-host-literal': ['hardcoded-tenant-domain'],
   'delete-leaves-resource-running': ['delete-without-teardown', 'stop-keeps-claim'],
   'background-job-ignores-account-state': ['job-ignores-account-state'],
+  'client-controlled-identity': ['client-identity-header'],
+  'cross-tenant-routing': ['unowned-route-pool'],
   'soft-delete-keeps-access': ['suspend-keeps-keys'],
 };
 

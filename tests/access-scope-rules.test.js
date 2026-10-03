@@ -91,3 +91,65 @@ describe('soft-state-unfiltered', () => {
     assert.deepEqual(rules(query('eq(projectDomains.domain, host)').replace(', status: projects.status', '')), []);
   });
 });
+
+describe('client-identity-header (TALLRIG-2026-053)', () => {
+  const r = (src) => scanAccessScope('src/middleware/shield.ts', src).map((f) => f.rule);
+  it('fires: a tenant id taken from a client header keys enforcement', () => {
+    assert.deepEqual(r([
+      'export function shield(opts = {}) {',
+      '  const resolveTenantId = opts.resolveTenantId ?? ((c) => c.req.header("x-tenant-id") ?? "platform");',
+      '  return resolveTenantId;',
+      '}',
+    ].join('\n')), ['client-identity-header']);
+  });
+  it('fires once per file, not once per read', () => {
+    const f = scanAccessScope('src/kv.ts', [
+      'app.get("/a", (c) => kvList(c.req.header("x-tenant-id")));',
+      'app.get("/b", (c) => kvGet(c.req.header("x-tenant-id")));',
+    ].join('\n'));
+    assert.equal(f.length, 1);
+    assert.match(f[0].message, /1 more read/);
+  });
+  it('quiet: the identity comes from the server (the Tallrig fix)', () => {
+    assert.deepEqual(r('const resolveTenantId = opts.resolveTenantId ?? (() => SHIELD_PLATFORM_TENANT_ID);'), []);
+  });
+  it('quiet: the header value is verified (HMAC / signature) before use', () => {
+    assert.deepEqual(r([
+      'const tenantId = c.req.header("x-tenant-id");',
+      'if (!verifyInternalSignature(c, tenantId)) return c.json({ error: "forbidden" }, 403);',
+    ].join('\n')), []);
+  });
+  it('quiet: a non-identity header and a commented example', () => {
+    assert.deepEqual(r([
+      'const reqId = c.req.header("x-request-id");',
+      '// const t = c.req.header("x-tenant-id");',
+    ].join('\n')), []);
+  });
+});
+
+describe('unowned-route-pool (TALLRIG-2026-050)', () => {
+  const r = (src) => scanAccessScope('src/email/inbound-router.ts', src).map((f) => f.rule);
+  const resolver = (where) => [
+    'export async function findRouteForAddress(address, db) {',
+    '  const rows = await db',
+    '    .select()',
+    '    .from(emailInboundRoutes)',
+    `    .where(${where});`,
+    '  return matchInboundAddress(address, rows);',
+    '}',
+  ].join('\n');
+  it('fires: every tenant\'s enabled routes pooled and matched by address', () => {
+    assert.deepEqual(r(resolver('isNull(emailInboundRoutes.disabledAt)')), ['unowned-route-pool']);
+  });
+  it('quiet: the pool is scoped by a key (project / owner) or has more than the flag', () => {
+    assert.deepEqual(r(resolver('and(isNull(emailInboundRoutes.disabledAt), eq(emailInboundRoutes.userId, userId))')), []);
+    assert.deepEqual(r(resolver('eq(emailInboundRoutes.domain, host)')), []);
+  });
+  it('quiet: a batch list with no address match afterwards', () => {
+    assert.deepEqual(scanAccessScope('src/jobs/sweep.ts', [
+      'async function listDomains(db) {',
+      '  return db.select().from(projectDomains).where(isNull(projectDomains.deletedAt));',
+      '}',
+    ].join('\n')).map((f) => f.rule), []);
+  });
+});
