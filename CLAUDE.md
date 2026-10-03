@@ -636,7 +636,7 @@ If a competitor does something we don't, that's a GateTest bug. Fix it.
 
 **2026-09-29 — estate module (module 122; #807 R3, PR #822):** sibling-host discovery (list / sitemap / TLS SAN / links) with a per-host outside-in verdict; runs in `full` (now 89), `nuclear` (97) and `wp` (31), not in `quick` or `standard`.
 
-GateTest v1.61.1 — **unreleased: npm serves `@gatetest/cli@1.61.0` (tagged v1.61.0 2026-09-13); the `v1` Action tag sits on main `e101d517`** — **122 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
+GateTest v1.62.0 — **released by tag `v1.62.0` 2026-10-03 (Craig: "publish npm"); `publish.yml` publishes `@gatetest/cli` and advances the `v1` Action tag. The previous release, 1.61.1, went to npm 2026-09-16** — **122 modules** (spineHealth added 2026-07-30), **hybrid AI layer** (Craig 2026-07-07;
 Sonnet 5 upgrade + user-selectable model + BYOK Craig 2026-07-10):
 **Fable 5** (`claude-fable-5`) on the paid fix tiers (Scan+Fix, Forensic),
 **Sonnet 5** (`claude-sonnet-5`) on free/cheap/high-volume paths, **Opus
@@ -679,6 +679,27 @@ same-origin-gated engine-side); self-serve Stripe billing portal
 (gatetest.io/billing); npm publishing via OIDC trusted publishing (token-free).
 Date stamp last fully reconciled: 2026-07-11 (core-engine program: every-scan
 flywheel + false-positive control + entry-level CLI recap).
+
+### v1.62.0 (2026-10-03) — precision batch from the Gluecron/Tallrig triage
+
+Full scans of Gluecron and Tallrig were triaged line by line. Every finding was
+judged either a platform bug (sent to that platform's session, fixed there) or
+a rule defect (fixed here with a control pair). The rule fixes were #913 and
+#924:
+- presence-checked env reads; JS-comment and string-template noise in
+  a11y/performance;
+- teardown idioms in bashSafety;
+- chunked/retry loops in nPlusOne;
+- authBypass inline `use()` callbacks;
+- undefinedRef regex literals;
+- crossFileTaint receivers;
+- secrets location fallbacks;
+- hardcodedUrl multi-line tables.
+
+Three new warning-level security rules, `unset-credential-allows`,
+`wildcard-bind` and optional-verifier handling in `client-identity-header`,
+take the Tallrig bug corpus to 32 of 59 caught (26 of 53 before). Precision
+corpus: 20/20 at ceilings, NodeGoat 41 ≥ 40. Module count unchanged at 122.
 
 ### v1.61.0 (2026-07-30) — spineHealth: structural analysis, module #121
 
