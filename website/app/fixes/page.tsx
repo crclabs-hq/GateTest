@@ -10,8 +10,10 @@ import Link from 'next/link';
 import PageHero from '../components/site/PageHero';
 import Section from '../components/site/Section';
 import StatTiles from '../components/site/StatTiles';
+import { siteUrl } from "@/app/lib/site-url";
 
 export const metadata: Metadata = {
+  alternates: { canonical: siteUrl("/fixes") },
   title: 'Fixed by GateTest — Public Fix Registry',
   description: 'Every bug, vulnerability, and code issue fixed by GateTest — public proof from real repos.',
 };

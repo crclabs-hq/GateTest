@@ -6,6 +6,7 @@ import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 
 export const metadata: Metadata = {
+  alternates: { canonical: siteUrl("/badge") },
   title: "README Badge — GateTest",
   description:
     "Add a live GateTest health score badge to your GitHub README. Shows your grade (A–F) and updates automatically after every scan.",

@@ -108,17 +108,17 @@ export default function ModulesIndexPage() {
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {cat.modules.map((mod) => (
-                  <Link key={mod.slug} href={`/modules/${mod.slug}`}>
-                    <Card>
+                  <Link key={mod.slug} href={`/modules/${mod.slug}`} className="block min-w-0">
+                    <Card className="min-w-0 break-words">
                       <div className="flex items-center gap-2 mb-1">
-                        <div className="text-[var(--v2-fg)] font-semibold">{prettify(mod.name)}</div>
+                        <div className="text-[var(--v2-fg)] font-semibold min-w-0 break-words">{prettify(mod.name)}</div>
                         {cat.comingSoon && (
                           <span className="v2-kicker !text-[9px] uppercase px-1.5 py-0.5 rounded-full border border-[var(--v2-warn)]/40 text-[var(--v2-warn)]">
                             Not available
                           </span>
                         )}
                       </div>
-                      <div className="text-xs v2-mono text-[var(--v2-accent)] mb-2">{mod.name}</div>
+                      <div className="text-xs v2-mono text-[var(--v2-accent)] mb-2 break-all">{mod.name}</div>
                       <div className="text-[var(--v2-muted)] text-sm leading-snug">{mod.description.slice(0, 130)}{mod.description.length > 130 ? "…" : ""}</div>
                     </Card>
                   </Link>

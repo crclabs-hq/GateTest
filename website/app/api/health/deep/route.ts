@@ -196,7 +196,7 @@ async function probeMail(): Promise<Reading> {
   if (r.status === 401 || r.status === 403) return { status: "down", reason: "mail provider rejected the key" };
   if (r.status === 429) return { status: "degraded", reason: "mail provider rate-limited the check" };
   if (r.status >= 500) return { status: "down", reason: "mail provider not answering" };
-  return { status: "degraded", reason: "mail provider answered unexpectedly" };
+  return { status: "degraded", reason: `mail provider answered unexpectedly (HTTP ${r.status})` };
 }
 
 /**
@@ -209,7 +209,7 @@ async function probeRuntime(): Promise<Reading> {
   if (!configured) return { status: "not-configured", reason: "runtime worker not configured on this deployment" };
   const r = await probeHttp(platformStatusUrl());
   if (r.status === 0) return { status: "down", reason: "runtime worker platform unreachable" };
-  if (r.status !== 200) return { status: "down", reason: "runtime worker platform status not answering" };
+  if (r.status !== 200) return { status: "down", reason: `runtime worker platform status not answering (HTTP ${r.status})` };
   const overall = typeof r.json?.overall === "string" ? r.json.overall.toLowerCase() : "";
   if (overall === "ok" || overall === "operational" || overall === "healthy") return { status: "ok", reason: "runtime worker platform reports healthy" };
   if (/^[a-z-]{1,24}$/.test(overall)) return { status: "degraded", reason: `runtime worker platform reports ${overall}` };

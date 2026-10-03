@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Hero, Section, Card, Pricing as V2Pricing } from "../components/v2";
 import AfterFree from "../components/AfterFree";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { TIERS } from "@/app/lib/checkout-tiers";
 import { breadcrumbSchema, contentMetadata, jsonLd } from "../lib/seo/schema";
 import { NonceScript } from "@/app/lib/seo/NonceScript";
 
@@ -44,6 +45,18 @@ export const metadata: Metadata = contentMetadata({
     "snyk pricing alternative",
   ],
 });
+
+const COUNT_WORDS = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten"];
+
+/** A count as a sentence-start word; digits past ten. */
+function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
+// Derived from the same TIERS table <V2Pricing /> renders, so the sentence
+// can never disagree with the table below it (it said "Four" over six rows).
+const ONE_TIME_TIERS = Object.values(TIERS).filter((t) => !t.recurring).length;
+const SUBSCRIPTION_TIERS = Object.values(TIERS).filter((t) => t.recurring).length;
 
 /** Pages a buyer actually wants before they reach for a card. All real routes. */
 const NEXT_STEPS: { href: string; title: string; body: string }[] = [
@@ -101,7 +114,8 @@ export default function PricingPage() {
               title="GateTest pricing"
               lede={
                 <>
-                  Four one-time scan tiers billed per run, two subscriptions, and a
+                  {countWord(ONE_TIME_TIERS)} one-time scan tiers billed per run,{" "}
+                  {countWord(SUBSCRIPTION_TIERS).toLowerCase()} subscriptions, and a
                   contact-based{" "}
                   <Link href="/enterprise" className="text-accent hover:underline">
                     Enterprise

@@ -39,6 +39,7 @@ import { LiveModuleTicker, ProgressTicker, RuntimePending, RuntimeUnavailable } 
 import { CopyForAgentButton } from "./url-scan-flow-export";
 import { ScanFeedback } from "./ScanFeedback";
 import { consumeSseStream } from "./url-scan-flow-sse";
+import { sseErrorReason } from "./sse-error-reason";
 
 // Issue #648 item 3 — permalink + restore for /web (and /wp, which shares
 // this component) results. The `?s=` encoding (whole result, base64url, an
@@ -265,8 +266,7 @@ export function UrlScanFlow({ suite, endpoint, streamEndpoint, recommendEndpoint
       } else if (event === "complete") {
         completed = data as ScanResult;
       } else if (event === "error") {
-        const d = data as { error?: string };
-        throw new Error(d?.error || "Scan errored mid-stream");
+        throw new Error(sseErrorReason(data));
       }
     }, abort.signal);
 

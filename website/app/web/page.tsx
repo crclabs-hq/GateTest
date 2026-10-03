@@ -10,8 +10,10 @@ import { UrlScanFlow } from "@/app/components/UrlScanFlow";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import siteStats from "../data/site-stats.json";
 import { Hero, Section, Card } from "../components/v2";
+import { siteUrl } from "@/app/lib/site-url";
 
 export const metadata = {
+  alternates: { canonical: siteUrl("/web") },
   title: "GateTest — Live Website Health Check, Security + Runtime Audit",
   description:
     "Paste any URL. We run live HTTPS, security-header, TLS, cookie, accessibility, SEO, broken-link and page-weight probes against your site. Plain-English report with a 0-100 health score. The real-browser runtime pass (JavaScript errors, hydration mismatches, CSP violations) is rolling out and is reported separately when it runs.",
