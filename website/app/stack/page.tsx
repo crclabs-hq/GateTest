@@ -4,6 +4,7 @@ import Section from "../components/site/Section";
 import { Card, Stat, Callout } from "../components/v2";
 import siteStats from "../data/site-stats.json";
 import { PLATFORM_NAME, PLATFORM_HOST, PLATFORM_SITE_URL } from "../lib/platform-config";
+import { siteUrl } from "@/app/lib/site-url";
 
 // gatetest.io/stack — "One team, three products" page.
 //
@@ -12,6 +13,7 @@ import { PLATFORM_NAME, PLATFORM_HOST, PLATFORM_SITE_URL } from "../lib/platform
 // on 2026-05-13.
 
 export const metadata = {
+  alternates: { canonical: siteUrl("/stack") },
   title: `One team, three products — GateTest · Gluecron · ${PLATFORM_NAME}`,
   description:
     `GateTest audits your code and your site. Gluecron hosts your git. ${PLATFORM_NAME} tells you when something breaks. All built by the same team. Use whichever solves your problem.`,

@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import McpCheckoutButton from "./McpCheckoutButton";
 import { ALL_TOOLS, TOOL_COUNT } from "./tools-data";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
-import { SITE_URL } from "@/app/lib/site-url";
+import { SITE_URL, siteUrl } from "@/app/lib/site-url";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 
 export const metadata: Metadata = {
+  alternates: { canonical: siteUrl("/mcp") },
   title: "GateTest MCP — Free Local Server, $29/mo Hosted Endpoint",
   description:
     `The full ${TOTAL_MODULES}-module GateTest engine inside Cursor, Windsurf, and any MCP-compatible AI client — 100% free on your own machine. $29/mo adds the hosted endpoint for web/mobile AI clients plus hosted scan history.`,

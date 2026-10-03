@@ -8,8 +8,10 @@
 import type { Metadata } from "next";
 import LegalDocument from "../components/legal/LegalDocument";
 import { DOC } from "./trust-content";
+import { siteUrl } from "@/app/lib/site-url";
 
 export const metadata: Metadata = {
+  alternates: { canonical: siteUrl("/trust") },
   title: "Trust & Security — GateTest",
   description: "What GateTest does with your code, what it never does, and the controls that make each statement true — infrastructure, encryption, AI provider handling, permissions, disclosure and known limitations.",
 };

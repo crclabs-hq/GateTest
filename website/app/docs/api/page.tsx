@@ -1,11 +1,12 @@
 ﻿import type { Metadata } from "next";
-import { SITE_URL } from "@/app/lib/site-url";
+import { SITE_URL, siteUrl } from "@/app/lib/site-url";
 import { appInstallUrl } from "@/app/lib/github-app-permissions";
 import { FULL_SUITE_MODULES } from "@/app/mcp/tools-data";
 import PageHero from "../../components/site/PageHero";
 import Section from "../../components/site/Section";
 
 export const metadata: Metadata = {
+  alternates: { canonical: siteUrl("/docs/api") },
   title: "API Reference — GateTest",
   description:
     "GateTest public API v1 — scan any repo or upload files directly. Bearer auth, JSON response, idempotency support.",

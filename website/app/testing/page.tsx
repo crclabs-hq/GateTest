@@ -28,6 +28,7 @@ import {
   type PullRequest,
 } from "./arena-fetch";
 import { selectProofTone } from "../lib/testing-proof-tone";
+import { siteUrl } from "@/app/lib/site-url";
 
 export const revalidate = 60;
 
@@ -150,6 +151,7 @@ function inferStalledReason(stats: { fixed: number; pending: number; failed: num
 }
 
 export const metadata = {
+  alternates: { canonical: siteUrl("/testing") },
   title: "Testing — live arena | GateTest",
   description:
     "Every 2 hours, GateTest's arena repo gets a bug injected. The ai-ci-fixer opens the PR with the fix. Every cycle is public. This page is the receipts.",

@@ -9,8 +9,10 @@ import { UrlScanFlow } from "@/app/components/UrlScanFlow";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
+import { siteUrl } from "@/app/lib/site-url";
 
 export const metadata = {
+  alternates: { canonical: siteUrl("/wp") },
   title: "GateTest for WordPress — Health Check, Security Audit, Auto-Fix",
   description:
     "Scan your WordPress site in 60 seconds. Find malware exposure, leaked credentials, security misconfigurations, and slow pages. Plain-language report. $19 one-shot, no subscription.",
