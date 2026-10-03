@@ -1,0 +1,191 @@
+{
+  "generatedAt": "2026-10-03T08:55:07.434Z",
+  "windowHours": 24,
+  "summary": {
+    "totalUniqueHits": 11,
+    "gatetestMentions": 0,
+    "competitorMentions": {
+      "Snyk": 6,
+      "SonarQube": 0,
+      "Semgrep": 2,
+      "CodeQL": 1,
+      "DeepSource": 0,
+      "Codacy": 1,
+      "Veracode": 0,
+      "Checkmarx": 1
+    },
+    "painPointsFound": 0
+  },
+  "gatetestMentions": [],
+  "competitorMentions": {
+    "Snyk": [
+      {
+        "objectId": "49941960",
+        "author": "hollowturtle",
+        "type": "comment",
+        "title": null,
+        "text": "New month old what? And btw software factories are just snake oil",
+        "url": "https://news.ycombinator.com/item?id=49941960",
+        "points": null,
+        "numComments": null,
+        "storyId": 49938616,
+        "createdAt": "2026-10-03T06:56:47Z",
+        "createdAtUnix": 1791010607,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49938400",
+        "author": "snypher",
+        "type": "comment",
+        "title": null,
+        "text": ">everyone sensible enough to not run them has to pay the priceI just run a computer where I can access the full disk, without worrying if a corporation thinks I shouldn't.",
+        "url": "https://news.ycombinator.com/item?id=49938400",
+        "points": null,
+        "numComments": null,
+        "storyId": 49937239,
+        "createdAt": "2026-10-02T20:44:45Z",
+        "createdAtUnix": 1790973885,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49932408",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "> I must assume you didn't read Turing's original paper? Here it is, you appear to be making the claim he attributes to Professor Jefferson's Lister Oration for 1949 in section 4: https:&#x2F;&#x2F;courses.cs.umbc.edu&#x2F;471&#x2F;papers&#x2F;turing.pdfI'm not arguing that machines are incapable of thinking, I'm arguing that merely generating some text doesn't prove that sufficient (or any) critical thinking was applied to fully appreciate the nature and consequences of those words and actions (i.e. what I called understanding). How often do people mindlessly read \"Do not enter or share this code with anybody\" and then immediately send it to the hacker?> What you say in this paragraph would be to claim that \"understanding\" is denied even to humans, given none of us can foresee the full consequences of our actions.No, it's a spectrum. We know that it's possible to generate text that people find convincing with absolutely no real thought or understanding behind it. ELIZA could do this 60 years ago and bots using markov chains or other \"primitive\" technology have plagued the internet long before LLMs entered the picture.> We do not say children and intoxicated people do not understand, we say their judgement is impaired or limited or that they are easily manipulated.Now that's a distinction without a difference. Earlier you claimed that agents \"understood\" what they were doing, but now you're equivocating and saying that understanding is somehow different from having real appreciation for the nature and consequences of those actions.This is fine if you want to be pedantic about the terminology but your earlier statement didn't make such a distinction, it implied both, so which is it?",
+        "url": "https://news.ycombinator.com/item?id=49932408",
+        "points": null,
+        "numComments": null,
+        "storyId": 49917378,
+        "createdAt": "2026-10-02T11:44:00Z",
+        "createdAtUnix": 1790941440,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49931977",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Bob values preserving collective life on earth. Alice might think that's ridiculous and obviously we must preserve human life first and foremost.Most of the western world eats beef but vegetarians, vegans, and some religions strongly oppose it on moral grounds. Does that mean that we're less intelligent than them?\"Right\" or \"wrong\" are words that evaluate actions against some existing ethical standard and those are completely arbitrary. There are about 8 billion of such standards in the world today.> And who has told you that those \"bobs\" were \"intelligent\"?!?!?!Would you say that Josef Mengele wasn't intelligent, without venturing into circular reasoning?",
+        "url": "https://news.ycombinator.com/item?id=49931977",
+        "points": null,
+        "numComments": null,
+        "storyId": 49917378,
+        "createdAt": "2026-10-02T10:36:58Z",
+        "createdAtUnix": 1790937418,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49931837",
+        "author": "dns_snek",
+        "type": "comment",
+        "title": null,
+        "text": "Says who? Children&#x2F;students effectively lost months of education and socialization in their formative years. They've been warning about this before AI even entered the picture.I'm sure AI is going to do even more damage but COVID was an important factor here as well.",
+        "url": "https://news.ycombinator.com/item?id=49931837",
+        "points": null,
+        "numComments": null,
+        "storyId": 49927100,
+        "createdAt": "2026-10-02T10:16:25Z",
+        "createdAtUnix": 1790936185,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49931374",
+        "author": "snikolaev",
+        "type": "story",
+        "title": "Why Muse May Never Need Ads",
+        "text": "Why Muse May Never Need Ads",
+        "url": "https://www.mbi-deepdives.com/no-ads-muse/",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49931374,
+        "createdAt": "2026-10-02T09:02:43Z",
+        "createdAtUnix": 1790931763,
+        "intent": "neutral"
+      }
+    ],
+    "SonarQube": [],
+    "Semgrep": [
+      {
+        "objectId": "49941326",
+        "author": "Garbage",
+        "type": "story",
+        "title": "Why It's Time to Rename Cybersecurity Awareness Month",
+        "text": "Why It's Time to Rename Cybersecurity Awareness Month",
+        "url": "https://semgrep.dev/blog/2026/rename-cybersecurity-awareness-month/",
+        "points": 2,
+        "numComments": 0,
+        "storyId": 49941326,
+        "createdAt": "2026-10-03T04:22:19Z",
+        "createdAtUnix": 1791001339,
+        "intent": "neutral"
+      },
+      {
+        "objectId": "49932740",
+        "author": "tinthedev",
+        "type": "comment",
+        "title": null,
+        "text": "Software engineer &#x2F; engineering lead. I've run teams (Kiwi, ~20, payments and refunds) and I've been the person who owns the hard system - NBA real-time stats on Kafka + Flink, Semgrep Series B public API auth and RBAC. Looking for freelance, contract, or a full-time seat where I can own a surface - not a backlog. Location: Brno, EU (UTC+1) Remote: Yes, 100%. On-site travel possible. Willing to relocate: No Technologies: Python, TypeScript, Go, PostgreSQL, Redis, Kafka, Flink, ClickHouse, AWS (Lambda, Cognito), Docker, CI&#x2F;CD. Flexible on the rest. Résumé&#x2F;CV: https:&#x2F;&#x2F;www.tinthe.dev&#x2F; Email: tinmarkoviccs (at) gmail.com Comfortable across backend and the data layer. Frontend when it serves the product (TypeScript &#x2F; React), not as a specialty. I use LLMs. I don't outsource the thinking to them. If the product grew faster than the architecture, that's the job.Not a cog-in-the-machine hire. Happy to start on a scoped piece of work if you'd rather test that than interview.https:&#x2F;&#x2F;www.linkedin.com&#x2F;in&#x2F;tin-markovichttps:&#x2F;&#x2F;www.tinthe.dev&#x2F;",
+        "url": "https://news.ycombinator.com/item?id=49932740",
+        "points": null,
+        "numComments": null,
+        "storyId": 49922568,
+        "createdAt": "2026-10-02T12:30:02Z",
+        "createdAtUnix": 1790944202,
+        "intent": "neutral"
+      }
+    ],
+    "CodeQL": [
+      {
+        "objectId": "49941556",
+        "author": "codelion",
+        "type": "story",
+        "title": "DataInventor – an open-source replication of Adaption Lab's Invent a Dataset",
+        "text": "DataInventor – an open-source replication of Adaption Lab's Invent a Dataset",
+        "url": "https://huggingface.co/spaces/LocalLLaMA/data-inventor",
+        "points": 1,
+        "numComments": 0,
+        "storyId": 49941556,
+        "createdAt": "2026-10-03T05:27:28Z",
+        "createdAtUnix": 1791005248,
+        "intent": "neutral"
+      }
+    ],
+    "DeepSource": [],
+    "Codacy": [
+      {
+        "objectId": "49940077",
+        "author": "bearware",
+        "type": "story",
+        "title": "ChatGPT Dot Avatars",
+        "text": "ChatGPT Dot Avatars",
+        "url": "https://github.com/blairjordan/codachi",
+        "points": 2,
+        "numComments": 1,
+        "storyId": 49940077,
+        "createdAt": "2026-10-03T00:00:02Z",
+        "createdAtUnix": 1790985602,
+        "intent": "neutral"
+      }
+    ],
+    "Veracode": [],
+    "Checkmarx": [
+      {
+        "objectId": "49940024",
+        "author": "lapcat",
+        "type": "comment",
+        "title": null,
+        "text": "> They provided password requirements which he ignored.No, you misunderstood what happened: \"Chrome inputs only abcdefghijklmnopqrstu (20 characters) as shown below\"1Password generated a password longer than 20 characters. When pasted, Chrome silently truncates the paste to the input maxlength!Look at the screenshot: The requirement \"Between 8 to 20 characters long\" has a green checkmark, because the requirement is satisfied.",
+        "url": "https://news.ycombinator.com/item?id=49940024",
+        "points": null,
+        "numComments": null,
+        "storyId": 49939773,
+        "createdAt": "2026-10-02T23:51:51Z",
+        "createdAtUnix": 1790985111,
+        "intent": "neutral"
+      }
+    ]
+  },
+  "painPoints": [],
+  "actionItems": []
+}
