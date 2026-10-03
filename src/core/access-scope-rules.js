@@ -115,6 +115,8 @@ const IDENTITY_HEADER_RE = /(?:\.header\(\s*|\.headers\.get\(\s*|\.headers\[\s*|
 // The value is verified, not trusted: an HMAC / signature / JWT check nearby.
 const VERIFIED_NEAR_RE = /\b(?:verify\w*|Verify\w*|hmac|Hmac|HMAC|timingSafeEqual|signature|Signature|jwt|Jwt|JWT|internalToken|INTERNAL_\w*SECRET)\b/;
 
+const OPTIONAL_VERIFIER_RE = /\bif\s*\(\s*(?:[\w$]+\s*\.\s*)*[\w$]*(?:verify|Verify)\w*\s*\)/;
+
 function clientIdentityHeader(relPath, masked) {
   const raw = masked.raw;
   const findings = [];
@@ -124,7 +126,11 @@ function clientIdentityHeader(relPath, masked) {
     const m = line.match(IDENTITY_HEADER_RE);
     if (!m) return;
     const near = masked.slice(Math.max(0, i - 6), i + 7).join('\n');
-    if (VERIFIED_NEAR_RE.test(near)) return;
+    // A verifier that only runs when it was supplied — `if (deps.verifyBearer)
+    // { … }` — is skipped wherever it is not, so it verifies nothing there
+    // (TALLRIG-2026-055: the production factory never passed one). The
+    // fail-closed form `if (!verify) return 503` is a real check.
+    if (VERIFIED_NEAR_RE.test(near) && !OPTIONAL_VERIFIER_RE.test(near)) return;
     hits.push({ line: i + 1, header: m[1] });
   });
   // One finding per file: the trust decision is the file's, not each read's.
@@ -139,6 +145,47 @@ function clientIdentityHeader(relPath, masked) {
       suggestion: 'Derive the identity from what the server authenticated (session, verified key, signed token). If a gateway you control always overwrites this header, say so where it is read.',
     });
   }
+  return findings;
+}
+
+// ── wildcard-bind (TALLRIG-2026-059) ────────────────────────────────────
+// A Bun / Hono server object with a port and no hostname: `Bun.serve({ port,
+// fetch })`, `serve({ fetch, port })`, `export default { port, fetch }`. Bun
+// and @hono/node-server default to EVERY interface, so a service meant for
+// loopback (an internal proxy with no auth of its own) answers on whatever
+// network the host is on. Plain `app.listen(port)` is not judged: binding
+// all interfaces is the normal container shape for a public app.
+const SERVE_OPEN_RE = /\b(?:Bun\s*\.\s*serve|[\w$]+\s*\.\s*serve|serve)\s*\(\s*\{|\bexport\s+default\s+\{/;
+
+function wildcardBind(relPath, masked) {
+  const findings = [];
+  masked.forEach((line, i) => {
+    const m = SERVE_OPEN_RE.exec(line);
+    if (!m) return;
+    let depth = 0;
+    const body = [];
+    // Brace-matched to the end of the options object; the cap only guards a
+    // runaway. 40 lines missed comms-intelligence's `hostname` after a long
+    // inline fetch/websocket object (Tallrig, 2026-10-03).
+    for (let k = i; k < masked.length && k <= i + 400; k += 1) {
+      const ln = k === i ? masked[k].slice(m.index) : masked[k];
+      body.push(ln);
+      for (const ch of ln) { if (ch === '{') depth += 1; else if (ch === '}') depth -= 1; }
+      if (depth <= 0) break;
+    }
+    const obj = body.join('\n');
+    if (!/\bport\b/.test(obj) || !/\bfetch\b/.test(obj)) return;
+    if (/\b(?:hostname|host)\b/.test(obj)) return;
+    // A spread (`...resolveApiBindOptions()`) may carry the hostname: not judged.
+    if (/\.\.\./.test(obj)) return;
+    findings.push({
+      rule: 'wildcard-bind',
+      line: i + 1,
+      severity: 'warning',
+      message: `${relPath}:${i + 1} starts a server with a port and no hostname — Bun and @hono/node-server then bind every interface, so a service meant for loopback is reachable from the host's network (inside a container whose port mapping is the exposure, this is expected)`,
+      suggestion: 'Pass `hostname` explicitly — an env-overridable value defaulting to "127.0.0.1" for an internal service, `"0.0.0.0"` only where exposure is intended and authenticated.',
+    });
+  });
   return findings;
 }
 
@@ -194,8 +241,9 @@ function scanAccessScope(relPath, content) {
     ...unscopedLookup(relPath, masked),
     ...softStateUnfiltered(relPath, masked),
     ...clientIdentityHeader(relPath, masked),
+    ...wildcardBind(relPath, masked),
     ...unownedRoutePool(relPath, masked),
   ];
 }
 
-module.exports = { scanAccessScope, unscopedLookup, softStateUnfiltered, clientIdentityHeader, unownedRoutePool };
+module.exports = { scanAccessScope, unscopedLookup, softStateUnfiltered, clientIdentityHeader, unownedRoutePool, wildcardBind };
