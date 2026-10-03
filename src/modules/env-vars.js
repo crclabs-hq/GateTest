@@ -414,7 +414,17 @@ class EnvVarsModule extends BaseModule {
     const lines = content.split(/\r?\n/);
     for (let i = 0; i < lines.length; i += 1) {
       const line = lines[i].trim();
-      if (!line || line.startsWith('#')) continue;
+      if (!line) continue;
+      // `# KEY=` — the usual way an example file documents an OPTIONAL key
+      // (Gluecron .env.example, 2026-10-03). It is declared, so a read of it
+      // is not missing-from-example; it is not the contract, so nothing
+      // reports it as unused. The key must follow the `#` directly: prose
+      // (`# Set FOO=1 to enable`) is not a declaration.
+      if (line.startsWith('#')) {
+        const commented = /^#\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=/.exec(line);
+        if (commented && ENV_KEY_RE.test(commented[1])) out.add(commented[1]);
+        continue;
+      }
       // Remove optional `export `
       const body = line.replace(/^export\s+/, '');
       const eq = body.indexOf('=');
