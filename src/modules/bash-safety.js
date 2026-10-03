@@ -56,6 +56,9 @@ const TOLERANT_EXIT = new Set([
  * old-user || true` in an uninstaller, `journalctl -u svc -n 30 || true` in a
  * failure report. A failure leaves nothing the script goes on to rely on.
  * (Tallrig 2026-10-03: 103 teardown + 24 diagnostic lines of 229.)
+ * Every entry exits non-zero when its target is already gone, so it needs
+ * the tolerance. `rm` is NOT here: `rm -f` tolerates absence by itself, so
+ * `|| true` on it hides only real failures (tests/infra-oracles.test.js).
  * NOT here, and blocking: anything that brings state INTO being —
  * `systemctl start|restart|enable|reload`, `rsync`, `cp`, `tar`,
  * `git reset`, `bun install` (Tallrig deploy.sh rollback hid all four).
@@ -66,7 +69,7 @@ const TEARDOWN_OR_READONLY = new Set([
   'systemctl is-active', 'systemctl is-enabled', 'systemctl is-failed',
   'ufw delete', 'docker rm', 'docker stop', 'docker kill', 'docker rmi',
   'git remote rm', 'git remote remove', 'nft list', 'wg show', 'ip link',
-  'userdel', 'groupdel', 'pkill', 'killall', 'fuser', 'rm', 'rmdir', 'unlink',
+  'userdel', 'groupdel', 'pkill', 'killall', 'fuser',
   'journalctl', 'dmesg', 'dig', 'ss', 'ls', 'df', 'free', 'uptime',
 ]);
 

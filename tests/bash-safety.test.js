@@ -132,7 +132,7 @@ describe('bash-safety — which files are shell is decided by src/core/shell-fil
   // extensionless `bin/deploy` with `#!/usr/bin/env bash` on line one was
   // never opened at all. Control pair: the same body fires from `bin/deploy`
   // and from `x.zsh`, stays silent under `LICENSE` and under a node shebang.
-  const DEPLOY = '#!/usr/bin/env bash\nset -e\nmake release || true\n';
+  const DEPLOY = '#!/usr/bin/env bash\nset -e\nrm -rf $DIR/ || true\n';
   const swallowAt = (f, rel) => f.find((c) => c.name === `bash-safety:pipe-true:${rel}:3`);
 
   it('POSITIVE: extensionless bin/deploy with a bash shebang FIRES', async () => {
