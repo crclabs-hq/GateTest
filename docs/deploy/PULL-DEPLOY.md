@@ -290,6 +290,20 @@ a script that runs unattended every 5 minutes.
 cat /var/lib/gatetest/pull-deploy-status.json
 ```
 
+**Reading `deploy-on-box.sh exited N` from outside the box** — the status
+reason (and `/api/platform-status` → `lastPullDeploy.reason`) carries only the
+exit code, so each refusal has its own:
+
+| N | Meaning | What to do on the box |
+|---|---|---|
+| 3 | post-deploy smoke: a probed route did not return 200 | `journalctl -u gatetest-pull-deploy -n 100` for the route |
+| 10 | checkout is not on `main` | stash hand edits, `git checkout main` (or `DEPLOY_RECOVER=1`, below) |
+| 11 | tracked files changed that the deploy did not change | `git status` / `git diff` in the app dir; keep what matters in a PR, then `DEPLOY_RECOVER=1` |
+| 12 | a `next build` is still running after the wait | `pgrep -af "next build"` |
+| 13 | `systemctl list-unit-files` failed | systemd health |
+| 128 | a git command failed | the journal names it |
+| 1 | the install or build failed (npm / next) | the journal |
+
 **The OnFailure safety net** (`gatetest-pull-deploy-onfailure.service`,
 `scripts/deploy/pull-deploy-onfailure.sh`) appends its "killed before it could
 record its own status" line only when the failed run did not record itself:
