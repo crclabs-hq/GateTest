@@ -143,6 +143,8 @@ const TAINT_ASSIGN_RE = /(?:const|let|var)\s+(\w+)\s*=\s*(.*)/;
 // Destructure from taint: const { x, y } = req.body
 const TAINT_DESTRUCT_RE = /(?:const|let|var)\s+\{([^}]+)\}\s*=\s*(.*)/;
 
+const CONST_TABLE_LOOKUP_RE = /^\s*(?:await\s+)?[A-Z][A-Z0-9_]{2,}\s*(?:\.\s*(?:find|get)\s*\(|\[)/;
+
 // Dangerous sink patterns
 const SINKS = [
   // `.all(` alone made `Promise.all(...)` a SQL sink, and `.query(` made
@@ -151,7 +153,10 @@ const SINKS = [
   // The receiver decides — `not` lists the shapes that are never SQL.
   {
     name: 'sql-query',
-    re: /\.\s*(?:query|raw|execute|run|all)\s*\(/,
+    // `execute` / `run` / `all` are everyday method names (`tool.execute`,
+    // `this.idempotency.run`, Tallrig 2026-10-03), so they count only on a
+    // database-shaped receiver; `query` / `raw` keep the `not` list below.
+    re: /\.\s*(?:query|raw)\s*\(|(?<![\w$])[\w$]*(?:db|Db|DB|[Dd]atabase|[Cc]lient|[Pp]ool|[Cc]onn|[Cc]onnection|knex|[Ss]ql|SQL|prisma|tx|trx|[Ss]tmt|[Ss]tatement|sqlite|[Cc]ursor)\s*\.\s*(?:execute|run|all)\s*\(/,
     not: /\bPromise\s*\.\s*(?:all|allSettled|race|any)\s*\(|(?:^|[^.\w])(?:req|request|ctx|c)\s*\.\s*(?:req\s*\.\s*)?query\s*\(|\.\s*req\s*\.\s*query\s*\(/,
   },
   { name: 'eval',              re: /\beval\s*\(/ },
@@ -170,7 +175,9 @@ const SINKS = [
   { name: 'spawn',             re: /\b(?:spawn|spawnSync)\s*\(/ },
   { name: 'file-read',         re: /\b(?:readFile|readFileSync|createReadStream)\s*\(/ },
   { name: 'file-write',        re: /\b(?:writeFile|writeFileSync|appendFile|unlink|rm|rmdir)\s*\(/ },
-  { name: 'path-join',         re: /\bpath\.(?:join|resolve)\s*\(/ },
+  // Not a member named `path` — `issue.path.join(".")` is Array.join on a
+  // zod issue path (Tallrig agents/door/app.ts).
+  { name: 'path-join',         re: /(?<![\w$.])path\.(?:join|resolve)\s*\(/ },
   { name: 'dom-inject',        re: /dangerouslySetInnerHTML|\.innerHTML\s*=|document\.write\s*\(|insertAdjacentHTML\s*\(/ },
   { name: 'redirect',          re: /\bres\.redirect\s*\(|\bctx\.redirect\s*\(|\bc\.redirect\s*\(/ },
   { name: 'child-process',     re: /\bexecFile(?:Sync)?\s*\(|\bfork\s*\(/ },
@@ -690,7 +697,10 @@ class CrossFileTaintModule extends BaseModule {
 
       // Also propagate taint: if rhs contains a known tainted var
       const assignProp = TAINT_ASSIGN_RE.exec(sinkSafeLine);
-      if (assignProp && !isTaintSource) {
+      // A lookup in a constant table (`POSTS.find((p) => p.slug === slug)`,
+      // `ROUTES[key]`) returns a row the code wrote, not the input that
+      // selected it — the table is the allowlist (Gluecron blog.tsx).
+      if (assignProp && !isTaintSource && !CONST_TABLE_LOOKUP_RE.test(assignProp[2] || '')) {
         const rhs = assignProp[2] || '';
         const carried = Array.from(tainted).filter((v) => this._lineReferencesVar(rhs, v));
         if (carried.length > 0 && /^\w+$/.test(assignProp[1])) {
