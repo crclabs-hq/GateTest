@@ -11,6 +11,7 @@ const { URL } = require('url');
 const dns = require('dns');
 const net = require('net');
 const tls = require('tls');
+const { detectTlsIntercept } = require('../core/tls-intercept');
 // One definition of directive-aware `unsafe-inline` classification (issue
 // #681 item 3), shared with src/modules/web-headers.js's live header check.
 const { classifyUnsafeInline } = require('../core/csp-analyzer');
@@ -115,11 +116,14 @@ class ServerScanner {
 
     const start = Date.now();
 
+    this._tlsVerdict = null;
+    const sslCheck = this._checkSSL(parsed);
+    this._sslCheck = sslCheck;
     const moduleResults = await Promise.allSettled([
-      this._checkSSL(parsed),
+      sslCheck,
       this._checkHeaders(url),
       this._checkDNS(parsed.hostname),
-      this._checkPerformance(url),
+      this._checkPerformance(url, { sslCheck }),
       this._checkAvailability(url),
     ]);
 
@@ -152,7 +156,7 @@ class ServerScanner {
     return results;
   }
 
-  async _checkSSL(parsed) {
+  async _checkSSL(parsed, env = process.env) {
     const mod = { status: 'passed', checks: 0, issues: 0, details: [] };
 
     if (parsed.protocol !== 'https:') {
@@ -170,7 +174,7 @@ class ServerScanner {
         servername: parsed.hostname,
         timeout: 10000,
       }, () => {
-        const cert = socket.getPeerCertificate();
+        const cert = socket.getPeerCertificate(true);
 
         // Check certificate exists
         mod.checks++;
@@ -183,23 +187,12 @@ class ServerScanner {
           return;
         }
 
-        // Check expiry
+        // Check expiry — unless the certificate is a local intercepting proxy's
+        // (then its issuer and expiry say nothing about the site).
         mod.checks++;
-        const expiry = new Date(cert.valid_to);
-        const daysLeft = Math.floor((expiry - Date.now()) / (1000 * 60 * 60 * 24));
-        if (daysLeft < 0) {
-          mod.issues++;
-          mod.details.push(`error: SSL certificate EXPIRED ${Math.abs(daysLeft)} days ago`);
-          mod.status = 'failed';
-        } else if (daysLeft < 14) {
-          mod.issues++;
-          mod.details.push(`warning: SSL certificate expires in ${daysLeft} days`);
-          if (mod.status !== 'failed') mod.status = 'warning';
-        } else if (daysLeft < 30) {
-          mod.details.push(`info: SSL certificate expires in ${daysLeft} days`);
-        } else {
-          mod.details.push(`pass: SSL certificate valid for ${daysLeft} days`);
-        }
+        const verdict = detectTlsIntercept({ cert, env });
+        this._tlsVerdict = verdict;
+        this._checkExpiry(mod, cert, verdict);
 
         // Check protocol version
         mod.checks++;
@@ -255,6 +248,30 @@ class ServerScanner {
         resolve(mod);
       });
     });
+  }
+
+  /** Cert-expiry finding, or the not-checked answer when TLS is intercepted. */
+  _checkExpiry(mod, cert, verdict) {
+    if (verdict && verdict.intercepted) {
+      const issuer = (cert.issuer && (cert.issuer.O || cert.issuer.CN)) || 'unknown';
+      mod.details.push(`info: SSL certificate expiry not checked — TLS intercepted by a local proxy (${verdict.reason}; the certificate seen was issued by ${issuer}, not the site's own CA)`);
+      return;
+    }
+    const expiry = new Date(cert.valid_to);
+    const daysLeft = Math.floor((expiry - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 0) {
+      mod.issues++;
+      mod.details.push(`error: SSL certificate EXPIRED ${Math.abs(daysLeft)} days ago`);
+      mod.status = 'failed';
+    } else if (daysLeft < 14) {
+      mod.issues++;
+      mod.details.push(`warning: SSL certificate expires in ${daysLeft} days`);
+      if (mod.status !== 'failed') mod.status = 'warning';
+    } else if (daysLeft < 30) {
+      mod.details.push(`info: SSL certificate expires in ${daysLeft} days`);
+    } else {
+      mod.details.push(`pass: SSL certificate valid for ${daysLeft} days`);
+    }
   }
 
   async _checkHeaders(url) {
@@ -494,8 +511,22 @@ class ServerScanner {
     }
   }
 
-  async _checkPerformance(url) {
+  async _checkPerformance(url, { sslCheck } = {}) {
     const mod = { status: 'passed', checks: 0, issues: 0, details: [] };
+
+    // Through an intercepting proxy every request pays the proxy's hop, so a
+    // TTFB number is about the proxy, not the site: not checked (info).
+    if (/^https:/i.test(url)) {
+      let verdict = { intercepted: false, reason: null };
+      if (sslCheck) {
+        try { await sslCheck; } catch { /* error-ok — the ssl module reports its own failure */ }
+        verdict = this._tlsVerdict || verdict;
+      }
+      if (verdict.intercepted) {
+        mod.details.push(`info: TTFB not checked — TLS intercepted by a local proxy (${verdict.reason}); the timing would measure the proxy, not the site`);
+        return mod;
+      }
+    }
 
     // Time to first byte (TTFB)
     mod.checks++;

@@ -19,8 +19,10 @@ import Link from "next/link";
 import PageHero from "../components/site/PageHero";
 import Section from "../components/site/Section";
 import { TOTAL_MODULES } from "@/app/lib/module-count";
+import { siteUrl } from "@/app/lib/site-url";
 
 export const metadata = {
+  alternates: { canonical: siteUrl("/quickstart") },
   title: "GateTest Quickstart — install to first fix PR in 5 minutes",
   description:
     "Install GateTest on a GitHub repo, add one secret, push a commit, watch an auto-fix PR open. Four steps, five minutes. Free to try.",

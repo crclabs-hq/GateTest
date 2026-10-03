@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { consumeSseStream } from "@/app/components/url-scan-flow-sse";
+import { sseErrorReason } from "@/app/components/sse-error-reason";
 import { totalModuleCount } from "@/app/components/howitworks/modules-data";
 import { SITE_URL, badgeUrl } from "@/app/lib/site-url";
 import { Hero, Section } from "../components/v2";
@@ -515,8 +516,7 @@ export default function PlaygroundPage() {
           if (completed.scopeLabel) addLine("info", completed.scopeLabel);
           if (completed.resultHeader) addLine("info", completed.resultHeader);
         } else if (event === "error") {
-          const d = data as { error?: string };
-          throw new Error(d?.error || "Scan errored mid-stream");
+          throw new Error(sseErrorReason(data));
         }
       }, abortRef.current.signal);
 

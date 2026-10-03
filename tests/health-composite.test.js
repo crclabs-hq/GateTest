@@ -253,6 +253,11 @@ describe('health-composite: wiring', () => {
     }
   });
 
+  it('a probe that answers unexpectedly reports the HTTP status it got', () => {
+    assert.match(route, /mail provider answered unexpectedly \(HTTP \$\{r\.status\}\)/);
+    assert.match(route, /runtime worker platform status not answering \(HTTP \$\{r\.status\}\)/);
+  });
+
   it('the ai reading is the usage ledger, never a live call; the queue reading reuses the /status mappers', () => {
     assert.match(route, /FROM usage_events WHERE ai_calls > 0/);
     assert.ok(!/\/v1\/messages/.test(route), 'no live AI call on a health poll');

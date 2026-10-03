@@ -128,6 +128,15 @@ function confirmsRoute(res, trusted, contentType) {
   return true;
 }
 
+// A broken-endpoint finding must name what to act on: method, URL and status
+// (or reason) of the first few, never just a count (gluecron.com 2026-10-03:
+// "1 broken endpoint among 21 checked" named nothing).
+function describeBroken(list, max = 3) {
+  const one = (b) => `${b.method || 'GET'} ${b.url} (${b.status ? `HTTP ${b.status}` : b.reason || 'request failed'})`;
+  const shown = list.slice(0, max).map(one).join('; ');
+  return list.length > max ? `${shown}; +${list.length - max} more` : shown;
+}
+
 // Which discovery sources were actually available — the not-checked reason
 // names the missing ones so the operator knows what to configure.
 function describeDiscovery(prov, guessed) {
@@ -294,7 +303,8 @@ class ApiHealthModule extends BaseModule {
     if (!res.ok) {
       if (res.blocked) return; // internal/metadata host — not a customer-facing finding
       stats.brokenEndpoints.push({
-        url: ep.url, method: ep.method, variant, reason: res.error || res.reason || 'request failed',
+        url: ep.url, method: ep.method, variant, status: res.status || null,
+        reason: res.error || res.reason || 'request failed',
       });
       return;
     }
@@ -354,7 +364,7 @@ class ApiHealthModule extends BaseModule {
     if (stats.brokenEndpoints.length > 0) {
       result.addCheck('api-health:broken-endpoints', false, {
         severity: 'error',
-        message: `${stats.brokenEndpoints.length} broken endpoint(s) found across ${stats.endpointsChecked} checked`,
+        message: `${stats.brokenEndpoints.length} broken endpoint(s) found across ${stats.endpointsChecked} checked: ${describeBroken(stats.brokenEndpoints)}`,
         details: stats.brokenEndpoints.slice(0, 30),
         suggestion: 'Fix the 5xx / missing route, or confirm the endpoint was intentionally removed',
       });

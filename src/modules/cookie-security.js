@@ -144,6 +144,17 @@ const PY_FRAMEWORK_DEFAULTS_RE = /(?:^|\/)(?:global_settings|default_settings|se
 // in the DOM regardless. Written out explicitly it is worth a look, not a gate.
 const PY_CSRF_HTTPONLY_SETTING = 'CSRF_COOKIE_HTTPONLY';
 
+/** A double-submit CSRF token cookie is read by page JS on purpose (the
+ *  token is echoed back in a header), so HttpOnly on it would break the
+ *  pattern. Matches on the cookie NAME only, by `[-_]` segment — `csrf_token`,
+ *  `XSRF-TOKEN`, `_csrf`, `csrftoken`, `__Host-csrf` — never a substring
+ *  (`csrfx_session`'s segments are `csrfx`, `session`: no match; `sid` no).
+ *  Seen on gluecron.com (2026-10-03): `csrf_token` Secure; SameSite=Lax. */
+const CSRF_NAME_SEGMENTS = new Set(['csrf', 'xsrf', 'csrftoken', 'xsrftoken']);
+function isCsrfTokenCookieName(name) {
+  return String(name || '').toLowerCase().split(/[-_]+/).some((seg) => CSRF_NAME_SEGMENTS.has(seg));
+}
+
 /** Every `Set-Cookie` header on a fetched response — a WHATWG `Headers`
  *  (`.getSetCookie()`, falling back to `.get()` for a single value on older
  *  runtimes) or a plain `{ 'set-cookie': string | string[] }` object. */
@@ -176,7 +187,7 @@ function liveCookieChecks(headers) {
     if (typeof raw !== 'string' || !raw) continue;
     const name = (raw.split('=')[0] || 'cookie').trim() || 'cookie';
     const hasSecure = /;\s*Secure\b/i.test(raw);
-    if (!/;\s*HttpOnly\b/i.test(raw)) {
+    if (!/;\s*HttpOnly\b/i.test(raw) && !isCsrfTokenCookieName(name)) {
       findings.push({
         id: `live-httponly-missing:${name}`, severity: 'warning',
         message: `Cookie "${name}" has no HttpOnly flag on the live response — readable from JS; an XSS bug becomes session takeover`,

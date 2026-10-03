@@ -194,7 +194,10 @@ const IGNORED = [
     names: ['NODE_ENV', 'PORT', 'HOME', 'VERCEL_ENV', 'APP_VERSION', 'GIT_COMMIT', 'GITHUB_ACTIONS',
       'GITHUB_REPOSITORY', 'GITHUB_WORKSPACE', 'GITHUB_SHA', 'PULL_DEPLOY_STATUS_FILE',
       'GITHUB_RUN_ID', 'GITHUB_SERVER_URL', 'GITHUB_EVENT_NAME', 'GITHUB_EVENT_PATH', 'GITHUB_BASE_REF', 'CI',
-      'NO_COLOR', 'FORCE_COLOR', 'NODE_TEST_CONTEXT', 'GATETEST_BUILD_COMMIT'],
+      'NO_COLOR', 'FORCE_COLOR', 'NODE_TEST_CONTEXT', 'GATETEST_BUILD_COMMIT',
+      // Node's own extra-CA variable, read (never set) by src/core/tls-intercept.js
+      // to tell a local intercepting proxy's certificate from the site's.
+      'NODE_EXTRA_CA_CERTS'],
   },
   {
     reason: "read by the scan engine (src/) from the CUSTOMER's environment when they run the CLI — not configuration of this website",

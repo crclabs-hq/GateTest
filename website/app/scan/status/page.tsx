@@ -105,6 +105,9 @@ export default function ScanStatus() {
   // scan at all (Forbidden #4). Until the client has read the URL and either
   // found a repo or produced a result, show a neutral loading state instead.
   const [hydrated, setHydrated] = useState(false);
+  // True when the link names no scan, or a scan id that does not exist.
+  // Distinct from "failed": nothing ran, nothing was paid for.
+  const [noScan, setNoScan] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
   const [elapsed, setElapsed] = useState(0);
   const [animModules, setAnimModules] = useState<ModuleResult[]>([]);
@@ -208,8 +211,13 @@ export default function ScanStatus() {
         .then((data) => {
           if (data.repoUrl) {
             setParams((p) => ({ ...p, repo: data.repoUrl, tier: data.tier || p.tier }));
+          } else if (typeof data.error === "string" && data.error.startsWith("Error:")) {
+            // A lookup that itself broke (not "this id does not exist") is a real failure.
+            setScanResult({ status: "failed", modules: [], totalModules: 0, completedModules: 0, totalIssues: 0, totalFixed: 0, duration: 0, error: "Could not load session" });
+            setScanning(false);
           } else {
-            setScanResult({ status: "failed", modules: [], totalModules: 0, completedModules: 0, totalIssues: 0, totalFixed: 0, duration: 0, error: "No repository URL found" });
+            // Unknown id: there is no scan behind this link — not a failed, paid run.
+            setNoScan(true);
             setScanning(false);
           }
         })
@@ -223,7 +231,7 @@ export default function ScanStatus() {
     if (!params.repo) {
       // No session id and no repo: nothing can ever start, so never show a
       // progress bar (Bible Forbidden #4 — the page must not sit at 5%).
-      setScanResult({ status: "failed", modules: [], totalModules: 0, completedModules: 0, totalIssues: 0, totalFixed: 0, duration: 0, error: "No scan selected. Open a scan from your dashboard or start one from the pricing page." });
+      setNoScan(true);
       setScanning(false);
       return;
     }
@@ -339,6 +347,30 @@ export default function ScanStatus() {
   const loading = !hydrated || (!scanResult && !params.repo);
   const displayModules = scanResult ? scanResult.modules : animModules;
   const displayProgress = scanResult ? 100 : Math.min(Math.round((animIndex / Math.max(animModules.length, 1)) * 95) + 5, 95);
+
+  if (noScan && !scanResult) {
+    return (
+      <main className="flex-1 bg-background px-6 py-12 sm:py-16">
+        <div className="max-w-3xl mx-auto text-center" data-testid="scan-not-found">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-5 bg-slate-50 border border-slate-200 text-slate-700">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            No scan found
+          </div>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-3 text-foreground">
+            We couldn&apos;t find a scan for this link
+          </h1>
+          <p className="text-sm text-muted mb-8">
+            This page needs a scan link, and the one you opened is missing or doesn&apos;t match any scan.
+            Start a new scan to get a fresh link.
+          </p>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link href="/#pricing" className="btn-primary px-6 py-3 text-sm">Start a scan</Link>
+            <Link href="/" className="px-6 py-3 text-sm rounded-xl border border-border">Back to GateTest</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex-1 bg-background px-6 py-12 sm:py-16">
