@@ -3,21 +3,13 @@
 const { URL } = require('url');
 const {
   fetchPage, checkUrl, extractLinks, extractImages, extractTitle,
-  normaliseCrawlUrl, extractCanonicalHref, aliasTarget,
+  normaliseCrawlUrl, extractCanonicalHref, aliasTarget, errorContentTypes,
+  createExternalLinkChecker, recordBrokenLink,
 } = require('./live-crawler-http-helpers');
 const { authHeadersFor } = require('./live-crawler-auth');
+const { extractVisibleText, extractTopHeadings } = require('../core/html-extract');
 
-const ERROR_PATTERNS = [
-  { regex: /application error/i, type: 'app-error' },
-  { regex: /internal server error/i, type: 'server-error' },
-  { regex: /page not found/i, type: '404-content' },
-  { regex: /something went wrong/i, type: 'generic-error' },
-  { regex: /uncaught (type)?error/i, type: 'js-error-in-html' },
-  { regex: /cannot read propert/i, type: 'js-runtime-error' },
-  { regex: /module not found/i, type: 'module-error' },
-  { regex: /hydration failed/i, type: 'hydration-error' },
-  { regex: /unhandled runtime error/i, type: 'runtime-error' },
-];
+
 
 async function crawlWithHttp(ctx) {
   const {
@@ -28,12 +20,16 @@ async function crawlWithHttp(ctx) {
     missingMetaDescription, missingCanonical,
     slowPages, slowThresholdMs, anchorMissingId, titlesByUrl,
     timedOutPages, offSiteRedirects, crawlDeadlineTs,
+    // URLs the site rate-limited (429 / 503+Retry-After) after backing off:
+    // NOT checked, never "broken" (live-crawler-http-helpers.js).
+    rateLimited = [],
     auth,
     // #806: canonical alias URL -> the canonical it was folded into
     aliasOf = new Map(),
   } = ctx;
 
   let budgetExhausted = false;
+  const checkExternalLink = createExternalLinkChecker(timeout);
 
   while (queue.length > 0 && visited.size < maxPages) {
     // Crawl-wide wall-clock budget (#640): stop taking new pages once there
@@ -92,6 +88,9 @@ async function crawlWithHttp(ctx) {
           status: pageResult.status,
           message: 'third-party redirect chain, terminal host ≠ target',
         });
+      } else if (pageResult.rateLimited) {
+        rateLimited.push({ url, status: pageResult.status, kind: 'page' });
+        continue;
       } else if (pageResult.status >= 400) {
         errors.push({ url, status: pageResult.status, type: 'http-error',
           message: `HTTP ${pageResult.status} ${pageResult.statusText}` });
@@ -148,16 +147,22 @@ async function crawlWithHttp(ctx) {
       let anchorMatch;
       while ((anchorMatch = anchorRegex.exec(body)) !== null) {
         const targetId = anchorMatch[1];
+        // HTML: a fragment of "top" (any case) scrolls to the top of the
+        // document when no element has that id — it is never broken.
+        if (/^top$/i.test(targetId)) continue;
         if (!idsOnPage.has(targetId)) {
           anchorMissingId.push({ page: url, anchor: `#${targetId}`,
             message: `<a href="#${targetId}"> targets a non-existent id` });
         }
       }
 
-      for (const { regex, type } of ERROR_PATTERNS) {
-        if (regex.test(body)) {
-          errors.push({ url, type, message: `Error pattern detected on page: "${type}"` });
-        }
+      // Judged where a visitor sees it (errorContentTypes, the one rule).
+      for (const type of errorContentTypes({
+        title: extractTitle(body) || '',
+        headings: extractTopHeadings(body),
+        visibleText: extractVisibleText(body),
+      })) {
+        errors.push({ url, type, message: `Error pattern detected on page: "${type}"` });
       }
 
       const links = extractLinks(body, baseUrl, url);
@@ -170,7 +175,9 @@ async function crawlWithHttp(ctx) {
         try {
           // authHeadersFor is same-origin gated — external images get no auth
           const imgResult = await checkUrl(imgUrl, timeout, authHeadersFor(imgUrl, auth));
-          if (imgResult.status >= 400) {
+          if (imgResult.rateLimited) {
+            rateLimited.push({ url: imgResult.url, status: imgResult.status, kind: 'image' });
+          } else if (imgResult.status >= 400) {
             brokenImages.push({ page: url, image: imgUrl, status: imgResult.status });
           }
         } catch {
@@ -178,17 +185,17 @@ async function crawlWithHttp(ctx) {
         }
       }
 
-      await collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth);
+      await collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth, rateLimited);
 
       if (checkExternal) {
         for (const link of links.external.slice(0, 20)) {
-          try {
-            const linkResult = await checkUrl(link.href, timeout);
-            if (linkResult.status >= 400) {
-              brokenLinks.push({ page: url, link: link.href, status: linkResult.status, type: 'external' });
-            }
-          } catch {
-            brokenLinks.push({ page: url, link: link.href, status: 'timeout/error', type: 'external' });
+          const linkResult = await checkExternalLink(link.href);
+          if (linkResult.error) {
+            recordBrokenLink(brokenLinks, { page: url, link: link.href, status: 'timeout/error', type: 'external' });
+          } else if (linkResult.rateLimited) {
+            if (!rateLimited.some((r) => r.url === link.href)) rateLimited.push({ url: link.href, status: linkResult.status, kind: 'external-link' });
+          } else if (linkResult.status >= 400) {
+            recordBrokenLink(brokenLinks, { page: url, link: link.href, status: linkResult.status, type: 'external' });
           }
         }
       }
@@ -214,7 +221,7 @@ async function crawlWithHttp(ctx) {
   return { budgetExhausted };
 }
 
-async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth) {
+async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenStylesheets, auth, rateLimited = []) {
   const scriptRegex = /<script[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi;
   const scriptUrls = new Set();
   let scriptMatch;
@@ -227,7 +234,8 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
   for (const scriptUrl of scriptUrls) {
     try {
       const r = await checkUrl(scriptUrl, timeout, authHeadersFor(scriptUrl, auth));
-      if (r.status >= 400) brokenScripts.push({ page: url, script: scriptUrl, status: r.status });
+      if (r.rateLimited) rateLimited.push({ url: r.url, status: r.status, kind: 'script' });
+      else if (r.status >= 400) brokenScripts.push({ page: url, script: scriptUrl, status: r.status });
     } catch {
       brokenScripts.push({ page: url, script: scriptUrl, status: 'timeout/error' });
     }
@@ -245,7 +253,8 @@ async function collectAssetStatuses(body, url, timeout, brokenScripts, brokenSty
   for (const styleUrl of styleUrls) {
     try {
       const r = await checkUrl(styleUrl, timeout, authHeadersFor(styleUrl, auth));
-      if (r.status >= 400) brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: r.status });
+      if (r.rateLimited) rateLimited.push({ url: r.url, status: r.status, kind: 'stylesheet' });
+      else if (r.status >= 400) brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: r.status });
     } catch {
       brokenStylesheets.push({ page: url, stylesheet: styleUrl, status: 'timeout/error' });
     }

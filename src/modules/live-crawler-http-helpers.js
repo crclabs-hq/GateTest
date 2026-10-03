@@ -21,7 +21,7 @@ function collectBody(res, cap) {
   });
 }
 
-function fetchPage(url, timeout, extraHeaders, _originHost) {
+function fetchPageOnce(url, timeout, extraHeaders, _originHost) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
     // The origin THIS crawl entry started at — threaded through recursive
@@ -86,7 +86,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
         // silently followed (#812: /docs answered 307 with a 16 KB one).
         collectBody(res, REDIRECT_BODY_CAP).then((hopBody) => {
           const hopIsErrorPage = REDIRECT_ERROR_PAGE_MARKER.test(hopBody);
-          return fetchPage(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
+          return fetchPageOnce(redirectUrl, timeout, redirectHeaders, originHost).then(redirectResult => {
             resolve({
               ...redirectResult,
               redirected: true,
@@ -133,7 +133,7 @@ function fetchPage(url, timeout, extraHeaders, _originHost) {
   });
 }
 
-function checkUrl(url, timeout, extraHeaders) {
+function checkUrlOnce(url, timeout, extraHeaders) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
     const client = parsedUrl.protocol === 'https:' ? https : http;
@@ -143,7 +143,7 @@ function checkUrl(url, timeout, extraHeaders) {
       timeout,
       headers: { 'User-Agent': UA, ...(extraHeaders || {}) },
     }, (res) => {
-      resolve({ url, status: res.statusCode, statusText: res.statusMessage });
+      resolve({ url, status: res.statusCode, statusText: res.statusMessage, headers: res.headers });
       res.resume();
     });
 
@@ -311,6 +311,9 @@ function extractImages(html, baseUrl, pageUrl) {
   const navigableHtml = stripNonNavigableRegions(html);
 
   while ((match = srcRegex.exec(navigableHtml)) !== null) {
+    // An inline data:/blob: image is part of the page; there is nothing to
+    // fetch, so it cannot be broken or time out (gatetest.io badge, 2026-10-03).
+    if (/^\s*(?:data|blob):/i.test(match[1])) continue;
     try {
       const resolved = new URL(match[1].trim(), pageUrl).href;
       images.push(resolved);
@@ -341,8 +344,124 @@ function getSuggestion(errorType) {
   return suggestions[errorType] || 'Investigate and fix the issue';
 }
 
+// ── Error-page content: one definition for both crawl engines ───────────
+// A page is an error page when it states an error where a visitor sees it:
+// its <title> or a top heading, or anywhere on a page with little else on
+// it. A full page whose copy MENTIONS "something went wrong" or "page not
+// found" (product copy, docs), and a framework's serialized not-found
+// component inside a <script>, are not error pages (gatetest.io
+// 2026-10-03: 52 healthy pages flagged as 404-content).
+const ERROR_PATTERNS = [
+  { regex: /application error/i, type: 'app-error' },
+  { regex: /internal server error/i, type: 'server-error' },
+  { regex: /page not found|page could not be found/i, type: '404-content' },
+  { regex: /something went wrong/i, type: 'generic-error' },
+  { regex: /uncaught (type)?error/i, type: 'js-error-in-html' },
+  { regex: /cannot read propert/i, type: 'js-runtime-error' },
+  { regex: /module not found/i, type: 'module-error' },
+  { regex: /hydration failed/i, type: 'hydration-error' },
+  { regex: /unhandled runtime error/i, type: 'runtime-error' },
+];
+const ERROR_PAGE_MAX_TEXT = 600;
+
+/** Error-pattern types a page shows, judged by where they appear. */
+function errorContentTypes({ title = '', headings = [], visibleText = '' }) {
+  const prominent = [title || '', ...(headings || [])].join('\n');
+  const shortPage = String(visibleText || '').trim().length < ERROR_PAGE_MAX_TEXT;
+  return ERROR_PATTERNS
+    .filter(({ regex }) => regex.test(prominent) || (shortPage && regex.test(visibleText || '')))
+    .map(({ type }) => type);
+}
+
+// ── One check, and one finding, per external URL ─────────────────────────
+// A footer link appears on every page. Checking it per page re-requested the
+// same URL ~105 times on gatetest.io and reported it 105 times (2026-10-03).
+// The result is cached for the crawl, and a broken URL is ONE entry that
+// lists the pages linking to it.
+function createExternalLinkChecker(timeout, check = checkUrl) {
+  const cache = new Map(); // href -> Promise<{status, rateLimited?} | {error}>
+  return function checkExternal(href) {
+    if (!cache.has(href)) {
+      cache.set(href, check(href, timeout).then((r) => r, (err) => ({ error: err && err.message ? err.message : 'error' })));
+    }
+    return cache.get(href);
+  };
+}
+
+/** Add a broken link, merging repeats of the same URL into one entry with a `pages` list. */
+function recordBrokenLink(brokenLinks, entry) {
+  const existing = brokenLinks.find((b) => b.link === entry.link && b.type === entry.type);
+  if (existing) {
+    existing.pages = existing.pages || [existing.page];
+    if (!existing.pages.includes(entry.page)) existing.pages.push(entry.page);
+    existing.occurrences = existing.pages.length;
+    return;
+  }
+  brokenLinks.push({ ...entry, pages: [entry.page], occurrences: 1 });
+}
+
+// ── Rate limiting is the site's answer to OUR request rate ───────────────
+// A 429 (or a 503 that carries Retry-After) says "slow down", not "this
+// page is broken". The crawler fetches a page plus its scripts, styles and
+// images back to back, and over 100 pages that burst tripped gluecron.com's
+// limiter: ~35 pages reported as HTTP 429 failures, while 120 parallel
+// requests from a browser drew none (2026-10-03). So: honour Retry-After
+// (capped), back off this host for the rest of the crawl, retry twice, and
+// if it is still limiting, return the response marked `rateLimited` —
+// callers report that page as "not checked", never as a broken page.
+const RATE_LIMIT_MAX_WAIT_MS = 10000;
+const RATE_LIMIT_RETRIES = 2;
+const hostDelayMs = new Map(); // host -> politeness delay after a 429, for this process's crawl
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function isRateLimited(res) {
+  if (!res) return false;
+  if (res.status === 429) return true;
+  const h = res.headers || {};
+  return res.status === 503 && (h['retry-after'] !== undefined || h['Retry-After'] !== undefined);
+}
+
+function retryAfterMs(res, attempt) {
+  const h = (res && res.headers) || {};
+  const raw = h['retry-after'] !== undefined ? h['retry-after'] : h['Retry-After'];
+  let ms = NaN;
+  if (raw !== undefined) {
+    const secs = Number(raw);
+    ms = Number.isFinite(secs) ? secs * 1000 : Date.parse(raw) - Date.now();
+  }
+  if (!Number.isFinite(ms) || ms < 0) ms = 1000 * 2 ** attempt;
+  return Math.min(ms, RATE_LIMIT_MAX_WAIT_MS);
+}
+
+async function withRateLimitRetry(url, once) {
+  let host = '';
+  try { host = new URL(url).host; } catch { /* malformed: the request itself reports it */ }
+  let res;
+  for (let attempt = 0; ; attempt += 1) {
+    const delay = hostDelayMs.get(host) || 0;
+    if (delay) await sleep(delay);
+    res = await once();
+    if (!isRateLimited(res)) return res;
+    const wait = retryAfterMs(res, attempt);
+    hostDelayMs.set(host, Math.min(Math.max(delay * 2, 250), 2000));
+    if (attempt >= RATE_LIMIT_RETRIES) return { ...res, rateLimited: true };
+    await sleep(wait);
+  }
+}
+
+function fetchPage(url, timeout, extraHeaders) {
+  return withRateLimitRetry(url, () => fetchPageOnce(url, timeout, extraHeaders));
+}
+
+function checkUrl(url, timeout, extraHeaders) {
+  return withRateLimitRetry(url, () => checkUrlOnce(url, timeout, extraHeaders));
+}
+
 module.exports = {
   fetchPage, checkUrl, extractLinks, extractImages, getSuggestion,
   extractTitle, extractDeclaredIconHref,
   normaliseCrawlUrl, extractCanonicalHref, aliasTarget,
+  isRateLimited, retryAfterMs, _hostDelayMs: hostDelayMs,
+  errorContentTypes, ERROR_PATTERNS,
+  createExternalLinkChecker, recordBrokenLink,
 };

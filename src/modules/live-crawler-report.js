@@ -51,16 +51,23 @@ const NOT_CHECKED_BLOCK_SHARE = 0.2; // 20%
 /** How many pages this crawl never actually verified — timed out, or never attempted before the wall-clock budget ran out. */
 function notCheckedCount(data) {
   const timedOut = (data.timedOutPages || []).length;
+  const rateLimited = rateLimitedPages(data).length;
   const budgetSkipped = data.budgetExhausted
-    ? Math.max(0, (data.maxPages || 0) - (data.pagesScanned || 0) - timedOut)
+    ? Math.max(0, (data.maxPages || 0) - (data.pagesScanned || 0) - timedOut - rateLimited)
     : 0;
-  return timedOut + budgetSkipped;
+  return timedOut + rateLimited + budgetSkipped;
+}
+
+/** Pages the site answered 429 for even after backing off — not checked, never broken. */
+function rateLimitedPages(data) {
+  return (data.rateLimited || []).filter((r) => r && r.kind === 'page');
 }
 
 /** Why those pages were not checked, in the order the reasons apply. Null when nothing was skipped. */
 function notCheckedReason(data) {
   const reasons = [];
   if ((data.timedOutPages || []).length > 0) reasons.push('timed out');
+  if (rateLimitedPages(data).length > 0) reasons.push('rate-limited by the site (HTTP 429)');
   if (data.budgetExhausted) reasons.push('crawl budget exhausted');
   return reasons.length ? reasons.join('; ') : null;
 }
@@ -103,6 +110,7 @@ function pushWarningsSection(lines, warnings) {
 function crawlResultLabel(data) {
   const clean = hardFindingCount(data) === 0
     && (data.timedOutPages || []).length === 0
+    && rateLimitedPages(data).length === 0
     && !data.budgetExhausted
     && (data.pagesScanned || 0) > 0;
   return clean ? 'ALL CLEAR' : 'ISSUES FOUND';
@@ -162,6 +170,14 @@ function buildCrawlFindings(data) {
   }
   for (const t of data.timedOutPages || []) {
     findings.push({ type: 'timeout', severity: 'warning', message: t.message || `timed out after ${t.elapsedMs}ms`, url: t.url || null });
+  }
+  for (const r of data.rateLimited || []) {
+    findings.push({
+      type: 'rate-limited',
+      severity: r.kind === 'page' ? 'warning' : 'info',
+      message: `not checked: the site answered HTTP ${r.status} (rate limited) to this ${r.kind || 'URL'} even after backing off — not counted as broken`,
+      url: r.url || null,
+    });
   }
   if (data.budgetExhausted) {
     findings.push({

@@ -1,19 +1,12 @@
 'use strict';
 
-const { checkUrl, normaliseCrawlUrl, aliasTarget } = require('./live-crawler-http-helpers');
+const {
+  normaliseCrawlUrl, aliasTarget, errorContentTypes,
+  createExternalLinkChecker, recordBrokenLink,
+} = require('./live-crawler-http-helpers');
 const { sameOrigin, parseCookiesForBrowser } = require('./live-crawler-auth');
 
-const RENDERED_ERROR_PATTERNS = [
-  { regex: /application error/i, type: 'app-error' },
-  { regex: /internal server error/i, type: 'server-error' },
-  { regex: /page not found/i, type: '404-content' },
-  { regex: /something went wrong/i, type: 'generic-error' },
-  { regex: /uncaught (type)?error/i, type: 'js-error-in-html' },
-  { regex: /cannot read propert/i, type: 'js-runtime-error' },
-  { regex: /module not found/i, type: 'module-error' },
-  { regex: /hydration failed/i, type: 'hydration-error' },
-  { regex: /unhandled runtime error/i, type: 'runtime-error' },
-];
+
 
 async function crawlWithBrowser(playwright, ctx) {
   const {
@@ -21,7 +14,9 @@ async function crawlWithBrowser(playwright, ctx) {
     visited, pages, errors, brokenLinks, brokenImages, queue,
     redirects, timedOutPages, auth, crawlDeadlineTs,
     aliasOf = new Map(), // #806: canonical alias URL -> the canonical it was folded into
+    rateLimited = [],
   } = ctx;
+  const checkExternalLink = createExternalLinkChecker(timeout);
 
   let budgetExhausted = false;
 
@@ -109,6 +104,13 @@ async function crawlWithBrowser(playwright, ctx) {
           redirects.push({ from: url, to: finalUrl, status });
         }
 
+        // A 429 is the site's answer to our request rate, not to the page:
+        // record it as not checked and skip the page checks below, which
+        // would otherwise judge the limiter's reply as an empty page.
+        if (status === 429) {
+          rateLimited.push({ url, status, kind: 'page' });
+          continue;
+        }
         if (status >= 400) {
           errors.push({ url, status, type: 'http-error', message: `HTTP ${status}` });
         }
@@ -124,10 +126,12 @@ async function crawlWithBrowser(playwright, ctx) {
           errors.push({ url, type: 'missing-title', message: 'Page has no <title> or title is empty' });
         }
 
-        for (const { regex, type } of RENDERED_ERROR_PATTERNS) {
-          if (regex.test(textContent)) {
-            errors.push({ url, type, message: `Error pattern "${type}" visible on rendered page` });
-          }
+        // Same rule as the HTTP engine (errorContentTypes): the title, the
+        // rendered h1/h2 text, or a short page.
+        const headings = await page.evaluate(() => Array.from(document.querySelectorAll('h1, h2'))
+          .map((h) => (h.innerText || '').trim()).filter(Boolean));
+        for (const type of errorContentTypes({ title, headings, visibleText: textContent })) {
+          errors.push({ url, type, message: `Error pattern "${type}" visible on rendered page` });
         }
 
         const broken = await page.evaluate(() => {
@@ -156,13 +160,13 @@ async function crawlWithBrowser(playwright, ctx) {
               .filter(href => href.startsWith('http') && !href.startsWith(base));
           }, baseUrl);
           for (const extLink of extLinks.slice(0, 20)) {
-            try {
-              const linkResult = await checkUrl(extLink, timeout);
-              if (linkResult.status >= 400) {
-                brokenLinks.push({ page: url, link: extLink, status: linkResult.status, type: 'external' });
-              }
-            } catch {
-              brokenLinks.push({ page: url, link: extLink, status: 'timeout/error', type: 'external' });
+            const linkResult = await checkExternalLink(extLink);
+            if (linkResult.error) {
+              recordBrokenLink(brokenLinks, { page: url, link: extLink, status: 'timeout/error', type: 'external' });
+            } else if (linkResult.rateLimited) {
+              if (!rateLimited.some((r) => r.url === extLink)) rateLimited.push({ url: extLink, status: linkResult.status, kind: 'external-link' });
+            } else if (linkResult.status >= 400) {
+              recordBrokenLink(brokenLinks, { page: url, link: extLink, status: linkResult.status, type: 'external' });
             }
           }
         }
