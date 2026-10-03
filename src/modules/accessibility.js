@@ -260,7 +260,15 @@ class AccessibilityModule extends BaseModule {
     if (/(^|\/)(components?\/ui|ui\/primitives?|primitives?)\/(input|textarea|select|checkbox|radio|switch|form)[^/]*$/i.test(relPath.replace(/\\/g, '/'))) return;
     // Strip HTML and JSX comments so a commented-out <input> is not
     // "unlabelled" (offsets preserved: the blank is the comment's length).
-    const contentNoComments = content.replace(/<!--[\s\S]*?-->|\{\s*\/\*[\s\S]*?\*\/\s*\}/g, (m) => ' '.repeat(m.length));
+    // In a script file, a JS comment that OPENS a line too — a JSDoc
+    // `@param {HTMLInputElement} el  the name <input> element` is prose
+    // (Gluecron workflow-secrets.tsx:160, 2026-10-03). Only line-initial
+    // comments: `accept="image/*"` mid-line must not open a "comment".
+    // Newlines are kept so line numbers stay true.
+    const isScript = /\.(?:[cm]?[jt]sx?)$/i.test(relPath);
+    const contentNoComments = content
+      .replace(/<!--[\s\S]*?-->|\{\s*\/\*[\s\S]*?\*\/\s*\}/g, (m) => m.replace(/[^\n]/g, ' '))
+      .replace(isScript ? /^[ \t]*\/\*[\s\S]*?\*\/|^[ \t]*\/\/[^\n]*/gm : /(?!)/g, (m) => m.replace(/[^\n]/g, ' '));
     const at = ctx && ctx.at;
     const collapse = ctx && ctx.collapse;
     // Uppercase-initial definitions in this file, in order, so a literal
