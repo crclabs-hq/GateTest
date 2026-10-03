@@ -26,7 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const { repoRelative } = require('../core/repo-path');
 const { literalKindAt } = require('../core/source-strip');
-const { scanDisclosure } = require('../core/disclosure-rules');
+const { scanDisclosure, buildDisclosureContext } = require('../core/disclosure-rules');
 const { scanAccessScope } = require('../core/access-scope-rules');
 const { scanAccountState } = require('../core/account-state-rules');
 const { scanHardcodedHosts } = require('../core/hardcoded-host-rules');
@@ -903,7 +903,12 @@ class SecurityModule extends BaseModule {
       let content;
       try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
       configTexts.push({ relPath, content });
-      for (const f of [...scanDisclosure(relPath, content), ...scanAccessScope(relPath, content), ...scanAccountState(relPath, content), ...scanHardcodedHosts(relPath, content), ...scanLifecycle(relPath, content)]) {
+    }
+    // Repo-wide facts first (which error classes only carry the code's own
+    // sentences), then each file is judged with them.
+    const disclosureCtx = buildDisclosureContext(configTexts);
+    for (const { relPath, content } of configTexts) {
+      for (const f of [...scanDisclosure(relPath, content, disclosureCtx), ...scanAccessScope(relPath, content), ...scanAccountState(relPath, content), ...scanHardcodedHosts(relPath, content), ...scanLifecycle(relPath, content)]) {
         result.addCheck(`security:${f.rule}:${relPath}:${f.line}`, false, {
           file: relPath,
           line: f.line,

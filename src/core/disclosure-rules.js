@@ -115,9 +115,76 @@ function urlCredentialParam(relPath, lines) {
   return out;
 }
 
-// Where the reader IS the operator — a CLI, a maintenance script, an
-// admin-only route — naming the variable to set is the right message.
-const OPERATOR_PATH_RE = /(?:^|\/)(?:bin|scripts|cli|tools)\/|\/admin\//;
+// Where the reader IS the operator — a CLI, a maintenance script, an audit
+// job, an admin-only route or an admin-named file — naming the variable to
+// set is the right message.
+const OPERATOR_PATH_RE = /(?:^|\/)(?:bin|scripts|cli|tools|audits)\/|\/admin\/|(?:^|\/)admin[-_][^/]*$/;
+
+// The handler a line sits in is gated to operators: the nearest route or
+// procedure head above it names an admin guard (Tallrig 2026-10-03:
+// `app.post("/x", requireAdmin, …)` and `liveModels: adminProcedure.query(…)`).
+const ROUTE_HEAD_RE = /\.(?:get|post|put|patch|delete|all)\s*\(\s*['"`]|\b[a-z]\w*Procedure\b/;
+const ADMIN_GATE_RE = /\b(?:requireAdmin|requireOperator|requireSuperAdmin|adminProcedure|operatorProcedure|superAdminProcedure)\b/;
+// A top-level function declaration ends the walk: a helper is not a handler,
+// whatever route sits above it (and an import line names guards, not a gate).
+const TOP_LEVEL_FN_RE = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\b/;
+function inAdminHandler(lines, i) {
+  for (let j = i; j >= Math.max(0, i - 250); j--) {
+    if (TOP_LEVEL_FN_RE.test(lines[j])) return false;
+    if (isComment(lines[j]) || /^\s*import\b/.test(lines[j]) || !ROUTE_HEAD_RE.test(lines[j])) continue;
+    return ADMIN_GATE_RE.test(lines.slice(j, j + 3).join(' '));
+  }
+  return false;
+}
+
+// An internal result object — a discriminated union a caller branches on
+// (`{ ok: false, reason }`, `{ status: "failed", note }`, `{ action: "refuse",
+// reason }`) — is a boot guard's or a helper's answer, not a response body.
+// Tallrig 2026-10-03: master-keys, secret-key-guard, crypto, ops-agent-client.
+const RESULT_DISCRIMINANT_RE = /\b(?:ok\s*:\s*(?:true|false)|status\s*:\s*['"`]|action\s*:\s*['"`])/;
+function objectAround(lines, i) {
+  let start = i;
+  for (let j = i; j >= Math.max(0, i - 4); j--) { start = j; if (/\{\s*$|\{\s*\w/.test(lines[j]) && /\breturn\b|=\s*\{|\(\s*\{/.test(lines[j])) break; }
+  let end = i;
+  for (let j = i; j < Math.min(lines.length, i + 5); j++) { end = j; if (/^\s*\}/.test(lines[j]) || /\}\s*\)?;?\s*$/.test(lines[j])) break; }
+  return lines.slice(start, end + 1).join('\n');
+}
+// …unless it is handed to a response, or carries an HTTP status for one
+// (`{ ok: false, status: 503, error }` is what a door answers with).
+const HTTP_STATUS_FIELD_RE = /\bstatus\s*:\s*[1-5]\d\d\b/;
+function isInternalResult(lines, i) {
+  const obj = objectAround(lines, i);
+  const near = lines.slice(Math.max(0, i - 3), i + 4).join('\n');
+  return RESULT_DISCRIMINANT_RE.test(obj) && !HTTP_STATUS_FIELD_RE.test(obj) && !RESPONSE_SINK_RE.test(near);
+}
+
+function wordIn(name, text) {
+  let at = text.indexOf(name);
+  while (at !== -1) {
+    const before = at === 0 ? '' : text[at - 1];
+    const after = text[at + name.length] || '';
+    if (!/[\w$]/.test(before) && !/[\w$]/.test(after)) return true;
+    at = text.indexOf(name, at + 1);
+  }
+  return false;
+}
+
+// The classes an `instanceof` guards within the last few lines, other than
+// plain Error: `if (err instanceof CronParseError) return c.json({ error:
+// err.message })` returns text the code itself wrote.
+const INSTANCEOF_RE = /\binstanceof\s+([A-Z][\w$]*)/g;
+function guardedClasses(lines, i, back = 3) {
+  const text = lines.slice(Math.max(0, i - back), i + 1).join('\n');
+  return [...text.matchAll(INSTANCEOF_RE)].map((m) => m[1]);
+}
+function typedErrorGuard(lines, i) {
+  const classes = guardedClasses(lines, i);
+  return classes.length > 0 && classes.every((c) => c !== 'Error');
+}
+
+// An explicit suppression on the line or the line above, for a surface the
+// rule cannot see is internal (a loopback-only service).
+const LEAK_OK_RE = /\berror-detail-ok\b/;
 
 function errorDetailLeak(relPath, lines) {
   const out = [];
@@ -127,9 +194,14 @@ function errorDetailLeak(relPath, lines) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (isComment(line) || LOG_LINE_RE.test(line)) continue;
+    if (LEAK_OK_RE.test(line) || (i > 0 && LEAK_OK_RE.test(lines[i - 1]))) continue;
     const facing = FACING_KEY_RE.exec(line);
     if (facing && ENV_NAME_RE.test(line.slice(facing.index))) {
-      const name = line.slice(facing.index).match(ENV_NAME_RE)[0];
+      const tail = line.slice(facing.index);
+      const name = tail.match(ENV_NAME_RE)[0];
+      // "(e.g. RESEND_API_KEY)" is an example of a key's shape, not this server's configuration.
+      if (/\be\.g\.\s*[A-Z]/.test(tail) && tail.indexOf(name) > tail.search(/\be\.g\./)) continue;
+      if (isInternalResult(lines, i) || inAdminHandler(lines, i)) continue;
       out.push({
         rule: 'error-detail-leak',
         line: i + 1,
@@ -140,8 +212,13 @@ function errorDetailLeak(relPath, lines) {
       continue;
     }
     if (throwsEnvName && ERR_MESSAGE_RE.test(line)) {
-      const windowText = lines.slice(i, i + 4).join('\n');
-      if (!RESPONSE_SINK_RE.test(windowText) || LOG_LINE_RE.test(windowText.split('\n').find((l) => RESPONSE_SINK_RE.test(l)) || '')) continue;
+      const windowLines = lines.slice(i, i + 4);
+      // `const message = err.message` leaks only if a response uses `message`
+      // (Tallrig's OAuth start logged it and redirected with a constant).
+      const bound = /\b(?:const|let|var)\s+([\w$]+)\s*=/.exec(line);
+      const sinkLine = windowLines.find((l, k) => RESPONSE_SINK_RE.test(l) && (!bound || k === 0 || wordIn(bound[1], l)));
+      if (!sinkLine || LOG_LINE_RE.test(sinkLine)) continue;
+      if (typedErrorGuard(lines, i) || inAdminHandler(lines, i)) continue;
       out.push({
         rule: 'error-detail-leak',
         line: i + 1,
@@ -196,15 +273,84 @@ const TRPC_MESSAGE_RE = /\bmessage\s*:\s*([\w$]+)\.message\b/;
 const CLASSIFIED_PICK_RE = /=\s*([\w$]+)\s+instanceof\s+([A-Z]\w*Error)\s*\?\s*\1\.message\b/;
 const ROLE_GATE_RE = /\b(?:is|can)(?:Operator|Admin|Staff|Internal)\b\s*\?/;
 
-function upstreamErrorLeak(relPath, lines) {
+// A caught error, by name or by its `catch (x)` binding — not `result.message`
+// of a value the code built (Tallrig: `message: claimable.message`).
+const ERROR_IDENT_RE = /^(?:err|error|e|ex|cause|caught)$/;
+function isCaughtError(name, lines, i) {
+  if (ERROR_IDENT_RE.test(name)) return true;
+  const back = lines.slice(Math.max(0, i - 12), i + 1).join('\n');
+  return [...back.matchAll(/\bcatch\s*\(\s*([\w$]+)/g)].some((m) => m[1] === name);
+}
+const SANITISE_CALL_RE = /\b\w*(?:safe|saniti[sz]e|redact|scrub)\w*\s*\(/i;
+
+/**
+ * Repo-wide facts the upstream rule needs, from every scanned file:
+ *   curatedErrors   error classes defined here whose every construction is
+ *                   the code's own sentence — no response body, vendor detail
+ *                   or caught message interpolated (Tallrig: ConferenceError,
+ *                   ComposeError; CarrierError builds from the vendor body)
+ *   scrubsInternal  a tRPC errorFormatter replaces INTERNAL_SERVER_ERROR
+ *                   messages that carry a cause
+ * Without it (a single file, a unit test) the rule judges the file alone.
+ */
+const ERROR_CLASS_RE = /\bclass\s+([A-Z][\w$]*)\s+extends\s+[\w$.]*Error\b/g;
+const UPSTREAM_TEXT_RE = /\$\{[^}]*\b(?:message|detail|details|body|text|snippet|responseText|raw)\b|(?<![\w$.])(?:err|error|e|cause)\.message\b|\+\s*[\w$.]*\b(?:message|detail|body|text)\b/;
+// The argument text of the call that opens `text`, up to its balanced `)`.
+function callArgs(text) {
+  const open = text.indexOf('(');
+  let depth = 0;
+  for (let k = open; k < text.length; k++) {
+    if (text[k] === '(') depth++;
+    else if (text[k] === ')' && --depth === 0) return text.slice(open, k + 1);
+  }
+  return text.slice(open);
+}
+function buildDisclosureContext(files) {
+  const defined = new Set();
+  const leaky = new Set();
+  let scrubsInternal = false;
+  for (const { content } of files) {
+    const text = String(content);
+    const lines = text.split(/\r?\n/);
+    for (const m of text.matchAll(ERROR_CLASS_RE)) defined.add(m[1]);
+    for (let i = 0; i < lines.length; i++) {
+      const cls = /\bclass\s+([A-Z][\w$]*)\s+extends\s+[\w$.]*Error\b/.exec(lines[i]);
+      if (cls && lines.slice(i, i + 15).some((l) => /\bsuper\s*\(/.test(l) && UPSTREAM_TEXT_RE.test(l))) leaky.add(cls[1]);
+      for (const m of lines[i].matchAll(/\bnew\s+([A-Z][\w$]*)\s*\(/g)) {
+        const call = callArgs([lines[i].slice(m.index), ...lines.slice(i + 1, i + 6)].join('\n'));
+        // Words inside a plain string are the code's own sentence ("…an HTML body").
+        const code = call.replace(/(['"])(?:\\.|(?!\1)[^\\\n])*\1/g, '""');
+        if (UPSTREAM_TEXT_RE.test(call) || /\b(?:detail|body|responseText)\b/.test(code)) leaky.add(m[1]);
+      }
+      if (/\berrorFormatter\b/.test(lines[i]) && lines.slice(i, i + 12).some((l) => /INTERNAL_SERVER_ERROR/.test(l) && /\bcause\b/.test(l))) scrubsInternal = true;
+    }
+  }
+  const curatedErrors = new Set([...defined].filter((c) => !leaky.has(c)));
+  return { curatedErrors, scrubsInternal };
+}
+
+function upstreamErrorLeak(relPath, lines, ctx = null) {
   const out = [];
+  const curated = (classes) => ctx && classes.length > 0 && classes.every((c) => ctx.curatedErrors.has(c));
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (isComment(line) || LOG_LINE_RE.test(line) || ROLE_GATE_RE.test(line)) continue;
-    const inTrpcError = /new\s+TRPCError\s*\(/.test(lines.slice(Math.max(0, i - 4), i + 1).join('\n'));
-    const trpc = inTrpcError && TRPC_MESSAGE_RE.exec(line);
-    const pick = CLASSIFIED_PICK_RE.exec(line);
+    const trpcStart = lines.slice(Math.max(0, i - 4), i + 1).findIndex((l) => /new\s+TRPCError\s*\(/.test(l));
+    const trpcMatch = trpcStart !== -1 && TRPC_MESSAGE_RE.exec(line);
+    const trpc = trpcMatch && isCaughtError(trpcMatch[1], lines, i) ? trpcMatch : null;
+    const pickMatch = CLASSIFIED_PICK_RE.exec(line);
+    const pick = pickMatch && pickMatch[2] !== 'TRPCError' ? pickMatch : null;
     if (!trpc && !pick) continue;
+    if (inAdminHandler(lines, i)) continue;
+    if (pick) {
+      if (curated([pick[2]])) continue;
+      if (SANITISE_CALL_RE.test(lines.slice(i + 1, i + 4).join('\n'))) continue;
+    }
+    if (trpc) {
+      if (curated(guardedClasses(lines, i, 6).filter((c) => c !== 'TRPCError'))) continue;
+      const block = lines.slice(Math.max(0, i - 4) + trpcStart, i + 4).join('\n');
+      if (ctx && ctx.scrubsInternal && /INTERNAL_SERVER_ERROR/.test(block) && /\bcause\s*[:,}]/.test(block)) continue;
+    }
     out.push({
       rule: 'upstream-error-leak',
       line: i + 1,
@@ -287,9 +433,9 @@ function ambientCredentialFallback(relPath, lines) {
 }
 
 /** All disclosure rules for one file. */
-function scanDisclosure(relPath, content) {
+function scanDisclosure(relPath, content, ctx = null) {
   const lines = String(content).split(/\r?\n/);
-  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines), ...upstreamErrorLeak(relPath, lines), ...insecureDefaultTier(relPath, lines), ...ambientCredentialFallback(relPath, lines)];
+  return [...urlCredentialParam(relPath, lines), ...errorDetailLeak(relPath, lines), ...weakKdf(relPath, lines), ...upstreamErrorLeak(relPath, lines, ctx), ...insecureDefaultTier(relPath, lines), ...ambientCredentialFallback(relPath, lines)];
 }
 
-module.exports = { scanDisclosure, urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak, insecureDefaultTier, ambientCredentialFallback };
+module.exports = { scanDisclosure, buildDisclosureContext, urlCredentialParam, errorDetailLeak, weakKdf, upstreamErrorLeak, insecureDefaultTier, ambientCredentialFallback };
