@@ -83,6 +83,26 @@ function clone(repo, dest) {
 }
 
 /**
+ * Findings that come from live third-party data, not from GateTest's rules
+ * judging the pinned code. `npm audit` asks the advisory database as it is
+ * TODAY: the corpus pins got at 687eb7dc, yet on 2026-10-03 it went from 0
+ * to 3 blocking with no engine change — a high advisory published against
+ * http-cache-semantics / cacheable-request (reproduced with the engine from
+ * before and after the PR under test: identical). Those findings are real,
+ * and printed; they are not evidence about rule precision, so the ceiling
+ * and floor judge the rest. One definition, tested in
+ * tests/real-world-precision-live.test.js.
+ */
+const LIVE_DATA_RULE_RE = /^security:npm-audit(?::|$)/;
+
+/** Split a repo's blocking count into rule findings and live-advisory findings. Pure. */
+function splitLiveFindings(blocking, findings) {
+  if (!Array.isArray(findings)) return { ruleBlocking: blocking, live: null };
+  const live = findings.filter((f) => LIVE_DATA_RULE_RE.test(f.rule || '')).length;
+  return { ruleBlocking: Math.max(0, blocking - live), live };
+}
+
+/**
  * Blocking count for one repo.
  *
  * Read from the summary line the runner prints:
@@ -226,9 +246,13 @@ function main() {
       process.stdout.write(`\n--- ${repo.name} @ ${repo.sha.slice(0, 8)}\n    ${repo.why}\n`);
       let blocking;
       let findings;
+      let ruleBlocking;
+      let live;
       try {
         clone(repo, dest);
         ({ blocking, findings } = scan(dest));
+        // Judge rules, not today's advisory feed (see LIVE_DATA_RULE_RE).
+        ({ ruleBlocking, live } = splitLiveFindings(blocking, findings));
       } catch (err) {
         // A repo we could not measure is a failure, never a silent pass —
         // that confusion is the whole reason this file exists.
@@ -238,7 +262,9 @@ function main() {
       }
 
       measured.push({
-        name: repo.name, url: repo.url, sha: repo.sha, why: repo.why, blocking,
+        name: repo.name, url: repo.url, sha: repo.sha, why: repo.why, blocking: ruleBlocking,
+        // Live-advisory findings (npm audit against today's database); null = not measured.
+        liveAdvisories: live,
         ...(typeof repo.maxBlocking === 'number' ? { ceiling: repo.maxBlocking } : {}),
         ...(typeof repo.minBlocking === 'number' ? { floor: repo.minBlocking } : {}),
         // Error findings the confidence signals kept off the gate (null:
@@ -252,22 +278,23 @@ function main() {
         findings,
       });
 
+      const liveNote = live ? ` + ${live} live-advisory finding${live === 1 ? '' : 's'} (npm audit, not judged)` : (live === null ? ' (live advisories: not measured — report unreadable, all counted)' : '');
       if (typeof repo.maxBlocking === 'number') {
-        const ok = blocking <= repo.maxBlocking;
-        console.log(`    ${ok ? 'ok  ' : 'FAIL'}   ${blocking} blocking (ceiling ${repo.maxBlocking})`);
+        const ok = ruleBlocking <= repo.maxBlocking;
+        console.log(`    ${ok ? 'ok  ' : 'FAIL'}   ${ruleBlocking} blocking (ceiling ${repo.maxBlocking})${liveNote}`);
         if (!ok) {
           failures.push(
-            `${repo.name}: ${blocking} blocking findings, ceiling is ${repo.maxBlocking}. ` +
+            `${repo.name}: ${ruleBlocking} blocking findings, ceiling is ${repo.maxBlocking}. ` +
             'Something started over-firing on code we do not control. Fix the rule — ' +
             'do not raise the ceiling.',
           );
         }
       } else if (typeof repo.minBlocking === 'number') {
-        const ok = blocking >= repo.minBlocking;
-        console.log(`    ${ok ? 'ok  ' : 'FAIL'}   ${blocking} blocking (floor ${repo.minBlocking})`);
+        const ok = ruleBlocking >= repo.minBlocking;
+        console.log(`    ${ok ? 'ok  ' : 'FAIL'}   ${ruleBlocking} blocking (floor ${repo.minBlocking})${liveNote}`);
         if (!ok) {
           failures.push(
-            `${repo.name}: only ${blocking} blocking findings, floor is ${repo.minBlocking}. ` +
+            `${repo.name}: only ${ruleBlocking} blocking findings, floor is ${repo.minBlocking}. ` +
             'Recall dropped — a deliberately vulnerable app stopped failing. A quieter ' +
             'scanner is not a better one.',
           );
@@ -364,4 +391,4 @@ if (require.main === module) main();
 
 // `clone` is shared with scripts/head-to-head.js so the comparison table is
 // measured on the same bytes as the gate — one clone routine, imported.
-module.exports = { clone, removeTmp, ratchetManifest, aggregateRulesByCorpus, MANIFEST };
+module.exports = { clone, removeTmp, ratchetManifest, aggregateRulesByCorpus, splitLiveFindings, LIVE_DATA_RULE_RE, MANIFEST };
