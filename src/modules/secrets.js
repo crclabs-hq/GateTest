@@ -289,8 +289,11 @@ const OAUTH_FIELD_RE = /\b(?:grant_type|token_type|response_type)\s*[:=]/i;
  * entropy guard bounds them.)
  */
 const FILENAME_VALUE_RE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*\.(?:bat|cmd|sh|bash|zsh|ps1|exe|py|pyc|js|mjs|cjs|ts|tsx|jsx|json|ya?ml|toml|ini|cfg|conf|txt|md|rst|html?|css|scss|xml|csv|tsv|log|env|lock|pem|key|crt|cer|p12|pfx|jks|db|sqlite3?|so|dll|jar|zip|tar|gz|png|jpe?g|gif|svg|ico|woff2?|ttf)$/i;
-const LABEL_VALUE_RE = /^[_-]?[a-z]+(?:[_-][a-z]+){1,3}[_-]?$/;
-const LABEL_CREDENTIAL_WORD_RE = /(?:^|[_-])(?:password|passwd|secret|token|key|credential|auth)(?:[_-]|$)/;
+// `.` separates too: a dotted storage-key name (`context.secrets.store(
+// "<ext>.pat", token)`, Gluecron editor-extensions/vscode) names the slot a
+// credential lives in. `pat` is a personal access token.
+const LABEL_VALUE_RE = /^[_-]?[a-z]+(?:[_.-][a-z]+){1,3}[_-]?$/;
+const LABEL_CREDENTIAL_WORD_RE = /(?:^|[_.-])(?:password|passwd|secret|token|key|credential|auth|pat)(?:[_.-]|$)/;
 const CREDENTIAL_SHAPE_MIN_LENGTH = 16;
 const CREDENTIAL_SHAPE_MIN_ENTROPY = 3.5;
 
@@ -364,6 +367,20 @@ const URL_WITH_CREDENTIAL_RE = /^[a-z][a-z0-9+.-]*:\/\/[^:@/?#]+:[^@/?#]+@/i;
 const BARE_HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
 function isTrivialFallbackValue(value) {
   if (BARE_HOSTNAME_RE.test(value)) return true;
+  // A LOCATION, not a credential: a URL with no userinfo, or a relative file
+  // path ending in a known extension — `CELITECH_TOKEN_URL ??
+  // "https://api.celitech.com/oauth2/token"`, `DEPLOY_MANIFEST_KEY ??
+  // "deploys/manifest.json"` (Tallrig 2026-10-03). Every path and query
+  // segment must itself fall short of credential shape, so a webhook URL
+  // carrying its secret in the path (`/services/T0/B0/<random>`) still counts.
+  const url = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)(.*)$/i.exec(value);
+  if (url && !url[1].includes('@')) {
+    return url[2].split(/[/?#&=]+/).filter(Boolean).every((seg) => !isCredentialShaped(seg));
+  }
+  if (/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+$/.test(value)) {
+    const segs = value.split('/');
+    return FILENAME_VALUE_RE.test(segs[segs.length - 1]) && segs.every((seg) => !isCredentialShaped(seg));
+  }
   return /^[A-Za-z]+$/.test(value) && value.length < CREDENTIAL_SHAPE_MIN_LENGTH;
 }
 
