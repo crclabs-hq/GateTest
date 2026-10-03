@@ -21,6 +21,7 @@ async function crawlWithBrowser(playwright, ctx) {
     visited, pages, errors, brokenLinks, brokenImages, queue,
     redirects, timedOutPages, auth, crawlDeadlineTs,
     aliasOf = new Map(), // #806: canonical alias URL -> the canonical it was folded into
+    rateLimited = [],
   } = ctx;
 
   let budgetExhausted = false;
@@ -109,6 +110,13 @@ async function crawlWithBrowser(playwright, ctx) {
           redirects.push({ from: url, to: finalUrl, status });
         }
 
+        // A 429 is the site's answer to our request rate, not to the page:
+        // record it as not checked and skip the page checks below, which
+        // would otherwise judge the limiter's reply as an empty page.
+        if (status === 429) {
+          rateLimited.push({ url, status, kind: 'page' });
+          continue;
+        }
         if (status >= 400) {
           errors.push({ url, status, type: 'http-error', message: `HTTP ${status}` });
         }
@@ -158,7 +166,9 @@ async function crawlWithBrowser(playwright, ctx) {
           for (const extLink of extLinks.slice(0, 20)) {
             try {
               const linkResult = await checkUrl(extLink, timeout);
-              if (linkResult.status >= 400) {
+              if (linkResult.rateLimited) {
+                rateLimited.push({ url: extLink, status: linkResult.status, kind: 'external-link' });
+              } else if (linkResult.status >= 400) {
                 brokenLinks.push({ page: url, link: extLink, status: linkResult.status, type: 'external' });
               }
             } catch {
