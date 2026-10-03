@@ -304,6 +304,7 @@ class UndefinedRefModule extends BaseModule {
     const len = src.length;
     let state = 'code'; // code | line-comment | block-comment | string | template
     let stringChar = '';
+    let lastSig = ''; // last non-whitespace code char, to tell `/re/` from `a / b`
 
     while (i < len) {
       const ch = src[i];
@@ -314,6 +315,18 @@ class UndefinedRefModule extends BaseModule {
         if (ch === '/' && next === '*') { state = 'block-comment'; out += '  '; i += 2; continue; }
         if (ch === '"' || ch === "'") { state = 'string'; stringChar = ch; out += ' '; i += 1; continue; }
         if (ch === '`') { state = 'template'; out += ' '; i += 1; continue; }
+        // A regex literal is blanked like a string: `.replace(/"/g, "")`
+        // opened a "string" at its quote and inverted the rest of the file
+        // (Tallrig minio.ts: a message inside `new Error("…")` became code).
+        // Same regex-context test as _walkCode.
+        if (ch === '/') {
+          const word = (src.slice(Math.max(0, i - 12), i).match(/([A-Za-z_$][\w$]*)\s*$/) || [])[1];
+          if (lastSig === '' || REGEX_PRECEDERS.has(lastSig) || REGEX_PRECEDING_WORDS.has(word)) {
+            const end = UndefinedRefModule._skipRegex(src, i);
+            if (end !== -1) { out += ' '.repeat(end - i); i = end; lastSig = '/'; continue; }
+          }
+        }
+        if (!/\s/.test(ch)) lastSig = ch;
         out += ch; i += 1; continue;
       }
       if (state === 'line-comment') {
